@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Results file
+Study/Results/
+
+# Code to run file
+Study/CodeToRun.R
