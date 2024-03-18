@@ -1,6 +1,6 @@
 # settings ------
 input <- list(
-  runGenerateCohort = F,              #### Generate cohort or use preloaded cohorts
+  runGenerateCohort = T,              #### Generate cohort or use preloaded cohorts
   runCalculateOverlap = T,            #### Calculate Overlap
   runCountCodes = T,                  #### run orphan codes and count codes
   runIndexEvents = T,                 #### run index events
@@ -22,8 +22,8 @@ tic(msg = "phenotypeR total time run: ")
 # Options and set-up: directories and settings ------
 tic(msg = "Settings and loading of Phoebe")
 
-cohort_json_dir <- here("Cohorts/")
-cohorts_name <- "phenotyping_paper_"
+cohort_json_dir <- here("OutcomeCodes/")
+cohorts_name <- "phenotyping_hpv_"
 
 # To export output 
 result_names <- c("cohort_definitions", "cohort_count", "code_counts", "cohort_overlap", 
