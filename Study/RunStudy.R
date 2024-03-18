@@ -6,6 +6,9 @@ logfile(logger) <- here(resultsFolder, loggerName)
 level(logger) <- "INFO"
 info(logger, "LOG CREATED")
 
+# parameters ----
+instantiateCohorts <- TRUE
+
 # create cdm object ----
 info(logger, "CREATING CDM OBJECT")
 cdm <- cdmFromCon(
@@ -20,7 +23,7 @@ info(logger, "CDM OBJECT CREATED")
 # create and export snapshot
 
 # instantiate necessary cohorts ----
-info(logger, "INSTANTIATING STUDY COHORTS")
+#info(logger, "INSTANTIATING STUDY COHORTS")
 source(here("Cohorts", "InstantiateCohorts.R"))
 info(logger, "STUDY COHORTS INSTANTIATED")
 
