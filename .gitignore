@@ -41,5 +41,3 @@ vignettes/*.pdf
 # Results file
 Study/Results/
 
-# Code to run file
-Study/CodeToRun.R
