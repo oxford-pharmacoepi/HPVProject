@@ -1,3 +1,18 @@
+library(CDMConnector)
+library(DBI)
+library(dbplyr)
+library(dplyr)
+library(CodelistGenerator)
+library(PatientProfiles)
+library(here)
+library(DrugUtilisation)
+library(IncidencePrevalence)
+library(tictoc)
+library(readr)
+library(stringr)
+library(testthat)
+library(SqlRender)
+
 # settings ------
 input <- list(
   runGenerateCohort = T,              #### Generate cohort or use preloaded cohorts
@@ -9,7 +24,7 @@ input <- list(
   runIncidence = T,                   #### run Incidence
   runPrevalence = T,                  #### run Prevalence
   sampleIncidencePrevalence = 1000000, #### Sample for Incidence Prevalence (NULL if all cdm)
-  cdmName = db_name,
+  cdmName = db_Name,
   exportResultsRData=T
 )
 
@@ -22,7 +37,7 @@ tic(msg = "phenotypeR total time run: ")
 # Options and set-up: directories and settings ------
 tic(msg = "Settings and loading of Phoebe")
 
-cohort_json_dir <- here("OutcomeCodes/")
+cohort_json_dir <- here("PhenotypeR/Cohorts/HPV_Outc_")
 cohorts_name <- "phenotyping_hpv_"
 
 # To export output 
@@ -55,18 +70,18 @@ tic(msg = "Connect to database")
 
 if (input$runGenerateCohort) {
 cdm <- cdm_from_con(con = db,
-                         cdm_schema = c(schema = cdm_schema),
-                         write_schema = c(schema= write_schema, prefix = study_prefix),
-                         achilles_schema = achilles_schema, 
-                         cdm_name = db_name
+                         cdm_schema = c(schema = cdmSchema),
+                         write_schema = writeSchema,
+                         achilles_schema = achillesSchema, 
+                         cdm_name = dbName
                     )
 } else   {
   cdm <- cdm_from_con(con = db,
-                      cdm_schema = c(schema = cdm_schema),
-                      write_schema = c(schema= write_schema, prefix = study_prefix),
-                      achilles_schema = achilles_schema,
+                      cdm_schema = c(schema = cdmSchema),
+                      write_schema = writeSchema,
+                      achilles_schema = achillesSchema,
                       cohort_tables = cohorts_name, # to load cohorts already there
-                      cdm_name = db_name  
+                      cdm_name = dbName  
   )
  
 }
@@ -77,20 +92,20 @@ toc(log = TRUE)
 
 
 # Get cdm snapshot -----
-tic(msg = "Getting cdm snapshot")
-cdm_snapshot <- snapshot(cdm)
-write_csv(cdm_snapshot, here("Results", paste0(
-  "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
-)))
-toc(log = TRUE)
+# tic(msg = "Getting cdm snapshot")
+# cdm_snapshot <- snapshot(cdm)
+# write_csv(cdm_snapshot, here("Results", paste0(
+#   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
+# )))
+# toc(log = TRUE)
 
 # Step 1: Get cohorts and generate them ------
 # now from json, but we can do with CapR other sources 
 
 tic(msg = "Generate Cohort Set")
-cohort_set <- read_cohort_set(cohort_json_dir)
+cohort_set <- readCohortSet(cohort_json_dir)
 if (input$runGenerateCohort) {
-  cdm <-   generateCohortSet(cdm, 
+  cdm <- generateCohortSet(cdm, 
                              cohort_set,
                              name = cohorts_name,
                              computeAttrition = TRUE,
@@ -232,7 +247,7 @@ for (n in  row_number(cohort_set_res) ) {
     if (input$runIndexEvents) {
       Index_events <- summariseCohortCodeUse( x= codes,
                                               cdm, 
-                                              cohortTable=cohorts_name,
+                                              cohortTable = cohorts_name,
                                               timing = "entry",
                                               countBy =  c("record", "person"),
                                               byConcept = TRUE,
@@ -304,7 +319,7 @@ toc(log = TRUE)
 #             NEW:  It could include matching cohorts                                     
 # Missing differences between them that can be done in shiny step - Also demographics that can be done in previous steps
 #  We can get also Visit Context here 
-# Low priority: tipe of visits Before, during, simultaneous, after
+# Low priority: type of visits Before, during, simultaneous, after
 # Could potentially be extracted from large scale ?
 
 ######## Matching pending
@@ -324,7 +339,7 @@ toc(log = TRUE)
 
  
  
- tic(msg = "Generate 1K Sample and Matched sample")
+tic(msg = "Generate 1K Sample and Matched sample")
 if (input$runMatchedSampleLSC) {
 
  cdm$sample <- cdm[[cohorts_name]]  %>% 
@@ -364,10 +379,11 @@ if (input$runMatchedSampleLSC) {
  # 
 toc(log = TRUE)
 
+
 tic("LargeScaleChar matched")
 if (input$runMatchedSampleLSC) {
   large_scale_char_matched <- summariseLargeScaleCharacteristics(
-    cohort=cdm$matched_cohort,
+    cohort = cdm$matched_cohort,
     window = list(c(-Inf, -366), c(-365, -31), c(-30, -1), 
                   c(0, 0), 
                   c(1, 30), c(31, 365),  c(366, Inf)),
@@ -385,10 +401,11 @@ if (input$runMatchedSampleLSC) {
 }
 toc(log = TRUE)
 
-tic("LArgeScaleChar sample")
+
+tic("LargeScaleChar sample")
 if (input$runMatchedSampleLSC) {
   large_scale_char_sample <- summariseLargeScaleCharacteristics(
-    cohort=cdm$sample,
+    cohort = cdm$sample,
     window = list(c(-Inf, -366), c(-365, -31), c(-30, -1), 
                   c(0, 0), 
                   c(1, 30), c(31, 365),  c(366, Inf)),
@@ -406,7 +423,7 @@ if (input$runMatchedSampleLSC) {
 }
 toc(log = TRUE)
 
-tic("LArgeScaleChar difference")
+tic("LargeScaleChar difference")
 if (input$runMatchedSampleLSC) {
   difference <- large_scale_char_sample  %>% 
     left_join( large_scale_char_matched, 
@@ -517,18 +534,18 @@ write_csv(output$log, here("Results", paste0(
 
 # zip Results -----
 # zip all Results -----
-cli::cli_text("- Zipping Results ({Sys.time()})")
-files_to_zip <- list.files(here("Results"))
-files_to_zip <- files_to_zip[str_detect(files_to_zip,
-                                        db_name)]
-files_to_zip <- files_to_zip[str_detect(files_to_zip,
-                                        ".csv")]
-
-zip::zip(zipfile = file.path(paste0(
-  here("Results"), "/Results_", study_prefix,"_", db_name, ".zip"
-)),
-files = files_to_zip,
-root = here("Results"))
+# cli::cli_text("- Zipping Results ({Sys.time()})")
+# files_to_zip <- list.files(here("Results"))
+# files_to_zip <- files_to_zip[str_detect(files_to_zip,
+#                                         db_Name)]
+# files_to_zip <- files_to_zip[str_detect(files_to_zip,
+#                                         ".csv")]
+# 
+# zip::zip(zipfile = file.path(paste0(
+#   here("Results"), "/PhenotypeResults_", study_prefix,"_", db_Name, ".zip"
+# )),
+# files = files_to_zip,
+# root = here("Results"))
 
 if (input$exportResultsRData) {
   analyses_performed <- as.integer(c(input$runGenerateCohort, 

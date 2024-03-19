@@ -17,7 +17,7 @@ library(RPostgres)
 if (instantiateCohorts) {
   info(logger, "INSTANTANIATE COHORTS")
   # Load vaccination records
-  cohorts <- readCohortSet(path = here("HPV_allvac_cohort.json"))
+  cohorts <- readCohortSet(path = here("Cohorts", "HIV_firstVac"))
   cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("allvac_cohort"))
   
   
@@ -43,7 +43,7 @@ if (instantiateCohorts) {
     recordCohortAttrition("Select subjects turning 9 in observation") %>%
     filter(date_of_birth >= as.POSIXct("2007-01-01") - years(15), date_of_birth <= as.POSIXct("2023-12-31") - years(15)) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
-    recordCohortAttrition("Select subjects turning 15 between 01/01/2007 and 31/12/2023") %>%
+    recordCohortAttrition("Select subjects turning 15 between 01/01/2007 - 31/12/2023") %>%
     addPriorObservation(indexDate = "date_9years", priorObservationName = "prior_observation_9y") %>%
     filter(prior_observation_9y >= 365) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
@@ -87,7 +87,7 @@ if (instantiateCohorts) {
     writeSchema = writeSchema, 
     cdmName = dbName, 
     achillesSchema = achillesSchema, 
-    cohortTables = c()
+    cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort")
   )
   
 }

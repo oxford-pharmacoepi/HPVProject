@@ -8,7 +8,7 @@ library(log4r)
 library(PatientProfiles)
 library(here)
 library(dplyr)
-source(here("FuncionsMAH.R"))
+source(here("Analyses","FuncionsMAH.R"))
 
 
 # Details

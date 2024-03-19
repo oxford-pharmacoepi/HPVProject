@@ -3,7 +3,7 @@ library(CDMConnector)
 library(RPostgres)
 library(PatientProfiles)
 
-
+if (instantiateCharacteristics) {
 info(logger, "INSTANTANIATE CHARACTERISTICS")
 # instantiate medications
 info(logger, "Instantiate medications")
@@ -49,12 +49,18 @@ cdm <- generateCohortSet(
 
 # instantiate previous vaccinations
 info(logger, "Instantiate previous vaccinations")
-previousVaccinations <- readCohortSet(here("Cohorts","Vaccinations"))
-cdm <- generateCohortSet(
-  cdm = cdm,
+previousVaccinations <- CodelistGenerator::getATCCodes(cdm,
+                                                       level = "ATC 2nd",
+                                                       name  = "VACCINES")
+cdm <- CDMConnector::generateConceptCohortSet(
+  cdm  = cdm,
+  conceptSet = previousVaccinations,
   name = "vaccinations",
-  cohortSet = previousVaccinations,
+  limit = "all",
+  end = 0,
+  overwrite = TRUE
 )
+
 
 # instantiate cyinfo(logger, "Instantiate previous vaccinations")
 cytology_results <- readCohortSet(here("Cohorts","Cytology_results"))
@@ -63,3 +69,14 @@ cdm <- generateCohortSet(
   name = "cytology",
   cohortSet = cytology_results,
 )
+
+} else {
+  cdm <- cdmFromCon(
+    con = db,
+    cdmSchema = cdmSchema, 
+    writeSchema = writeSchema, 
+    cdmName = dbName, 
+    achillesSchema = achillesSchema, 
+    cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+  )
+}
