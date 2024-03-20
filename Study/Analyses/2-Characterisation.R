@@ -83,13 +83,15 @@ tableOne_counts <- tableOne_tidy |>
   mutate(across(c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort), ~ as.numeric(.x))) |>
   select(age_group, variable_name, window, table, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
   mutate(across(c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort), ~ replace(., . < 5, NA))) |>
-  mutate("counts (UN, VAC, UM, VM)" = paste0(unvac_cohort, ", ", vac_cohort, ", ", total_unvac_matched_cohort, ", ", total_vac_matched_cohort)) |>
-  select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort))
+  rename("Count VAC" = vac_cohort, "Count UNVAC" = unvac_cohort, "Count Matched VAC" = total_vac_matched_cohort, "Count Matched UNVAC" = total_unvac_matched_cohort)
+#mutate("counts (UN, VAC, UM, VM)" = paste0(unvac_cohort, ", ", vac_cohort, ", ", total_unvac_matched_cohort, ", ", total_vac_matched_cohort)) |>
+#select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort))
 
 tableOne_smd <- tableOne_red |>
   mutate(original_smd = abs((vac_cohort - unvac_cohort)/sqrt((vac_cohort*(1-vac_cohort) + unvac_cohort*(1-unvac_cohort))/2))) |>
   mutate(matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
   mutate(across(c(original_smd,matched_smd), ~replace(., is.na(.), 0))) |>
+  select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort)) |>
   left_join(tableOne_counts, by = c("variable_name","age_group","window","table")) |>
   select(! c(estimate_name, estimate_type))
 
@@ -142,14 +144,16 @@ slc_counts <- slc_tidy |>
   filter(estimate_name == "count") |>
   mutate(across(c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort), ~ as.numeric(.x))) |>
   select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
-  mutate(across(c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort), ~replace(., . < 5, NA))) |>
-  mutate("counts (UN, VAC, UM, VM)" = paste0(unvac_cohort, ", ", vac_cohort, ", ", total_unvac_matched_cohort, ", ", total_vac_matched_cohort)) |>
-  select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort))
+  mutate(across(c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort), ~ replace(., . < 5, NA))) |>
+  rename("Count VAC" = vac_cohort, "Count UNVAC" = unvac_cohort, "Count Matched VAC" = total_vac_matched_cohort, "Count Matched UNVAC" = total_unvac_matched_cohort)
+#mutate("counts (UN, VAC, UM, VM)" = paste0(unvac_cohort, ", ", vac_cohort, ", ", total_unvac_matched_cohort, ", ", total_vac_matched_cohort)) |>
+#select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort))
 
 slc_smd <- slc_red |>
   mutate(original_smd = abs((vac_cohort - unvac_cohort)/sqrt((vac_cohort*(1-vac_cohort) + unvac_cohort*(1-unvac_cohort))/2))) |>
   mutate(matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
   mutate(across(c(matched_smd, original_smd), ~replace(., is.na(.), 0))) |>
+  select(! c(vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort)) |>
   left_join(slc_counts, by = c("variable_name","variable_level", "table_name","concept")) |>
   select(! c(estimate_name, estimate_type))
 
@@ -158,5 +162,5 @@ write.csv(slc_smd, paste0(resultsFolder,"/largeScale_SMD_",cdmSchema,".csv"), ro
 slc_help <- slc_tidy |>
   filter(estimate_name == "count") |>
   select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
-  left_join(slc_smd |> select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "counts (UN, VAC, UM, VM)"), 
+  left_join(slc_smd |> select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
             by = c("variable_name","variable_level", "table_name","concept"))

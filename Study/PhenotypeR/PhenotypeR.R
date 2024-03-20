@@ -1,31 +1,17 @@
-library(CDMConnector)
-library(DBI)
-library(dbplyr)
-library(dplyr)
 library(CodelistGenerator)
-library(PatientProfiles)
-library(here)
-library(DrugUtilisation)
-library(IncidencePrevalence)
-library(tictoc)
-library(readr)
-library(stringr)
-library(testthat)
-library(SqlRender)
-
 # settings ------
 input <- list(
-  runGenerateCohort = T,              #### Generate cohort or use preloaded cohorts
-  runCalculateOverlap = T,            #### Calculate Overlap
-  runCountCodes = T,                  #### run orphan codes and count codes
-  runIndexEvents = T,                 #### run index events
-  runProfiling = T,                   #### run age and time in database characterisation
-  runMatchedSampleLSC = T,            #### run matched LSC
-  runIncidence = T,                   #### run Incidence
-  runPrevalence = T,                  #### run Prevalence
+  runGenerateCohort = FALSE,              #### Generate cohort or use preloaded cohorts
+  runCalculateOverlap = TRUE,            #### Calculate Overlap
+  runCountCodes = TRUE,                  #### run orphan codes and count codes
+  runIndexEvents = TRUE,                 #### run index events
+  runProfiling = TRUE,                   #### run age and time in database characterisation
+  runMatchedSampleLSC = TRUE,            #### run matched LSC
+  runIncidence = TRUE,                   #### run Incidence
+  runPrevalence = TRUE,                  #### run Prevalence
   sampleIncidencePrevalence = 1000000, #### Sample for Incidence Prevalence (NULL if all cdm)
-  cdmName = db_Name,
-  exportResultsRData=T
+  cdmName = db_name,
+  exportPhenoResultsRData = TRUE
 )
 
 # Log start ------
@@ -48,9 +34,9 @@ output <- data <- vector("list", length(result_names)) |> setNames(result_names)
 
 
 
-if (input$runCountCodes & !file.exists(here("Phoebe/concept_recommended.csv")) ){
-  if (file.exists(here("Phoebe/concept_recommended_20221006 1.zip"))){
-    unzip(zipfile=here("Phoebe/concept_recommended_20221006 1.zip"), exdir=here("Phoebe/") )
+if (input$runCountCodes & !file.exists(here("PhenotypeR/Phoebe/concept_recommended.csv")) ){
+  if (file.exists(here("PhenotypeR/Phoebe/concept_recommended_20221006 1.zip"))){
+    unzip(zipfile=here("PhenotypeR/Phoebe/concept_recommended_20221006 1.zip"), exdir=here("PhenotypeR/Phoebe/") )
   } else { 
     input$runCountCodes <- F 
   }
@@ -58,7 +44,7 @@ if (input$runCountCodes & !file.exists(here("Phoebe/concept_recommended.csv")) )
 
 
 if (input$runCountCodes){ 
-  concept_recommended <- read.csv(here("Phoebe/concept_recommended.csv"))
+  concept_recommended <- read.csv(here("PhenotypeR/Phoebe/concept_recommended.csv"))
 }
 
 toc(log = TRUE)
@@ -69,12 +55,12 @@ toc(log = TRUE)
 tic(msg = "Connect to database")
 
 if (input$runGenerateCohort) {
-cdm <- cdm_from_con(con = db,
-                         cdm_schema = c(schema = cdmSchema),
-                         write_schema = writeSchema,
-                         achilles_schema = achillesSchema, 
-                         cdm_name = dbName
-                    )
+  cdm <- cdm_from_con(con = db,
+                      cdm_schema = c(schema = cdmSchema),
+                      write_schema = writeSchema,
+                      achilles_schema = achillesSchema, 
+                      cdm_name = dbName
+  )
 } else   {
   cdm <- cdm_from_con(con = db,
                       cdm_schema = c(schema = cdmSchema),
@@ -83,7 +69,7 @@ cdm <- cdm_from_con(con = db,
                       cohort_tables = cohorts_name, # to load cohorts already there
                       cdm_name = dbName  
   )
- 
+  
 }
 
 toc(log = TRUE)
@@ -94,7 +80,7 @@ toc(log = TRUE)
 # Get cdm snapshot -----
 # tic(msg = "Getting cdm snapshot")
 # cdm_snapshot <- snapshot(cdm)
-# write_csv(cdm_snapshot, here("Results", paste0(
+# write_csv(cdm_snapshot, here("PhenoResults", paste0(
 #   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 # )))
 # toc(log = TRUE)
@@ -103,9 +89,9 @@ toc(log = TRUE)
 # now from json, but we can do with CapR other sources 
 
 tic(msg = "Generate Cohort Set")
-cohort_set <- readCohortSet(cohort_json_dir)
+cohort_set <- read_cohort_set(cohort_json_dir)
 if (input$runGenerateCohort) {
-  cdm <- generateCohortSet(cdm, 
+  cdm <-   generateCohortSet(cdm, 
                              cohort_set,
                              name = cohorts_name,
                              computeAttrition = TRUE,
@@ -124,7 +110,7 @@ tic(msg = "Cohort counts, attrition")
 output$cohort_count <- cohort_count(cdm[[cohorts_name]]) %>% 
   left_join(settings(cdm[[cohorts_name]])) %>% 
   mutate(cdm_name = input$cdmName)
-write_csv(output$cohort_count, here("Results", paste0(
+write_csv(output$cohort_count, here("PhenoResults", paste0(
   "cohort_count_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 )))
 
@@ -138,33 +124,33 @@ toc(log = TRUE)
 
 tic(msg = "Calculate Overlap")
 if (input$runCalculateOverlap) {
-# Summarize the number of IDs in each group
-summary_by_group <- cdm[[cohorts_name]] %>%
-                    group_by(cohort_definition_id) %>%
-                    summarize(ids_in_group = n()) %>% 
-                    collect()
-
-# Join to get the IDs that intersect between groups
-summary_intersections <- cdm[[cohorts_name]] %>%
-  inner_join(cdm[[cohorts_name]], by = "subject_id") %>%
-  filter(cohort_definition_id.x != cohort_definition_id.y) %>%
-  select(subject_id, cohort_definition_id_x = cohort_definition_id.x, cohort_definition_id_y = cohort_definition_id.y) %>%
-  distinct()  %>%
-  group_by(cohort_definition_id_x, cohort_definition_id_y) %>%
-  summarize(intersect_count = n()) %>% 
-  collect() 
-
-
-output$cohort_overlap <- summary_intersections %>% 
-  mutate(cdm_name = input$cdmName) 
-output$cohort_overlap <- tryCatch({ 
-  output$cohort_overlap%>% 
-  mutate(intersect_count = if_else(intersect_count > 0 & intersect_count < 5, NA, intersect_count))
-}, error = function(e) {})
-
-tryCatch({  write_csv(output$cohort_overlap, here("Results", paste0(
-  "cohort_overlap_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
-))) }, error = function(e) {})
+  # Summarize the number of IDs in each group
+  summary_by_group <- cdm[[cohorts_name]] %>%
+    group_by(cohort_definition_id) %>%
+    summarize(ids_in_group = n()) %>% 
+    collect()
+  
+  # Join to get the IDs that intersect between groups
+  summary_intersections <- cdm[[cohorts_name]] %>%
+    inner_join(cdm[[cohorts_name]], by = "subject_id") %>%
+    filter(cohort_definition_id.x != cohort_definition_id.y) %>%
+    select(subject_id, cohort_definition_id_x = cohort_definition_id.x, cohort_definition_id_y = cohort_definition_id.y) %>%
+    distinct()  %>%
+    group_by(cohort_definition_id_x, cohort_definition_id_y) %>%
+    summarize(intersect_count = n()) %>% 
+    collect() 
+  
+  
+  output$cohort_overlap <- summary_intersections %>% 
+    mutate(cdm_name = input$cdmName) 
+  output$cohort_overlap <- tryCatch({ 
+    output$cohort_overlap%>% 
+      mutate(intersect_count = if_else(intersect_count > 0 & intersect_count < 5, NA, intersect_count))
+  }, error = function(e) {})
+  
+  tryCatch({  write_csv(output$cohort_overlap, here("PhenoResults", paste0(
+    "cohort_overlap_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
+  ))) }, error = function(e) {})
 }
 toc(log = TRUE)
 
@@ -202,42 +188,42 @@ for (n in  row_number(cohort_set_res) ) {
   ### Ideally reads the same JSON character line
   json2 <- jsonlite::read_json(paste0(cohort_json_dir, "/", cohort, ".json"))
   codes <- codesFromCohort(paste0(cohort_json_dir, "/", cohort, ".json"), cdm, withConceptDetails = F)
-
+  
   
   codes_id <- unlist(codes, recursive = TRUE, use.names = F)
-
+  
+  if (input$runCountCodes) {
+    recommended_codes <- concept_recommended %>% 
+      filter(concept_id_1 %in% codes_id ) %>% 
+      filter(!concept_id_2 %in% codes_id) %>% 
+      distinct(concept_id_2, .keep_all = TRUE)
+  }
+  
+  try({
     if (input$runCountCodes) {
-      recommended_codes <- concept_recommended %>% 
-        filter(concept_id_1 %in% codes_id ) %>% 
-        filter(!concept_id_2 %in% codes_id) %>% 
-        distinct(concept_id_2, .keep_all = TRUE)
+      recommended_codes_counts <- achillesCodeUse(list("recomendation" = recommended_codes$concept_id_2),
+                                                  cdm,
+                                                  countBy = c("record", "person"),
+                                                  minCellCount = 5) %>%  
+        mutate(standard_concept_id= as.integer(group_level )) %>%
+        left_join(recommended_codes, 
+                   join_by(standard_concept_id == concept_id_2 ) ) %>%
+        mutate(type="recommended_codes", cohort=cohort )
+      
+      
+      original_codes_counts <- achillesCodeUse(list("original_codes" = codes_id),
+                                               cdm,
+                                               countBy = c("record", "person"),
+                                               minCellCount = 5) %>%  
+        mutate(standard_concept_id= as.integer(group_level )) %>% 
+        left_join( recommended_codes, 
+                   join_by(standard_concept_id == concept_id_2 ) ) %>%
+        mutate(type="original_codes", cohort=cohort, relationship_id="original_codes", 
+               concept_id_1=standard_concept_id  )
+      
+      code_counts <- rbind(code_counts, recommended_codes_counts, original_codes_counts )
     }
-    
-    try({
-      if (input$runCountCodes) {
-        recommended_codes_counts <- achillesCodeUse(list("recomendation" = recommended_codes$concept_id_2),
-                                                    cdm,
-                                                    countBy = c("record", "person"),
-                                                    minCellCount = 5) %>%  
-          mutate(standard_concept_id= as.integer(group_level )) %>%
-          left_join( recommended_codes, 
-                     join_by(standard_concept_id == concept_id_2 ) ) %>%
-          mutate(type="reccomended_codes", cohort=cohort )
-        
-        
-        original_codes_counts <- achillesCodeUse(list("original_codes" = codes_id),
-                                                 cdm,
-                                                 countBy = c("record", "person"),
-                                                 minCellCount = 5) %>%  
-          mutate(standard_concept_id= as.integer(group_level )) %>% 
-          left_join( recommended_codes, 
-                     join_by(standard_concept_id == concept_id_2 ) ) %>%
-          mutate(type="original_codes", cohort=cohort, relationship_id="original_codes", 
-                 concept_id_1=standard_concept_id  )
-        
-        code_counts <- rbind(code_counts, recommended_codes_counts, original_codes_counts )
-      }
-    })
+  })
   
   
   ####### Cohort index
@@ -247,7 +233,7 @@ for (n in  row_number(cohort_set_res) ) {
     if (input$runIndexEvents) {
       Index_events <- summariseCohortCodeUse( x= codes,
                                               cdm, 
-                                              cohortTable = cohorts_name,
+                                              cohortTable=cohorts_name,
                                               timing = "entry",
                                               countBy =  c("record", "person"),
                                               byConcept = TRUE,
@@ -259,29 +245,29 @@ for (n in  row_number(cohort_set_res) ) {
   
 } 
 
-# save Results
+# save PhenoResults
 output$code_counts  <- code_counts %>% mutate(cdm_name = input$cdmName)
-write_csv(output$code_counts, here("Results", paste0(
+write_csv(output$code_counts, here("PhenoResults", paste0(
   "code_counts_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 )))
 output$index_events <- index_events %>% mutate(cdm_name = input$cdmName)
-write_csv(output$index_events, here("Results", paste0(
+write_csv(output$index_events, here("PhenoResults", paste0(
   "index_events_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 )))
 output$cohort_definitions <- cohort_set_res %>% mutate(cdm_name = input$cdmName)
-write_csv(output$cohort_definitions, here("Results", paste0(
+write_csv(output$cohort_definitions, here("PhenoResults", paste0(
   "cohort_definitions_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 )))
 
 rm(concept_recommended)
 toc(log = TRUE)
-   
+
 # Step 4: Time Distributions #########
 # observation time (days) after index , observation time (days) prior to index, time (days) between cohort start and end
 # Need to add better characterisation of demographics (a sort of table 1)
 
 tic(msg = "Patient_profiles summary")
-#cdm$Results_dx <- cdm[[cohorts_name]]
+#cdm$PhenoResults_dx <- cdm[[cohorts_name]]
 if (input$runProfiling) {
   Patient_profiles <- cdm[[cohorts_name]] %>%
     addDemographics(cdm) %>% 
@@ -301,11 +287,11 @@ if (input$runProfiling) {
   rm(Patient_profiles)
   
   output$age_distribution <- Age_distribution %>% mutate(cdm_name = input$cdmName) |> mutate(n = if_else(n > 0 & n < 5, NA, n))
-  write_csv(output$age_distribution, here("Results", paste0(
+  write_csv(output$age_distribution, here("PhenoResults", paste0(
     "age_distribution_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
   output$time_distribution <- Time_distribution %>% mutate(cdm_name = input$cdmName)
-  write_csv(output$time_distribution, here("Results", paste0(
+  write_csv(output$time_distribution, here("PhenoResults", paste0(
     "time_distribution_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
 }
@@ -319,7 +305,7 @@ toc(log = TRUE)
 #             NEW:  It could include matching cohorts                                     
 # Missing differences between them that can be done in shiny step - Also demographics that can be done in previous steps
 #  We can get also Visit Context here 
-# Low priority: type of visits Before, during, simultaneous, after
+# Low priority: tipe of visits Before, during, simultaneous, after
 # Could potentially be extracted from large scale ?
 
 ######## Matching pending
@@ -337,53 +323,52 @@ toc(log = TRUE)
 #  tic(msg = "Large Scale Char ")
 #  
 
- 
- 
+
+
 tic(msg = "Generate 1K Sample and Matched sample")
 if (input$runMatchedSampleLSC) {
-
- cdm$sample <- cdm[[cohorts_name]]  %>% 
-   slice_sample( n=1000, by =cohort_definition_id ) %>% compute()
- 
- cdm$sample2 <- cdm$sample %>% 
-   left_join(cdm$person %>% select(person_id, year_of_birth, gender_concept_id ),
-             by=join_by(subject_id==person_id))  %>% compute()
- 
- 
- 
- cdm$person_obs <- cdm$person %>% slice_sample( n=1000, by =year_of_birth )  %>% left_join(cdm$observation_period ) %>% compute()
- 
- cdm$matched_cohort <- cdm$sample2 %>% left_join(cdm$person_obs , by=join_by(year_of_birth==year_of_birth, 
-                                                                         gender_concept_id==gender_concept_id),
-                                             relationship = "many-to-many", 
-                                             keep=T)  %>% 
-   filter(cohort_start_date>=observation_period_start_date, cohort_start_date<=observation_period_end_date) %>%
-   distinct(subject_id, cohort_definition_id, .keep_all = TRUE) %>% 
-   select(person_id,cohort_start_date,cohort_end_date, cohort_definition_id ) %>%
-   rename( subject_id =person_id    ) %>% compute()
+  
+  cdm$sample <- cdm[[cohorts_name]]  %>% 
+    slice_sample( n=1000, by =cohort_definition_id ) %>% compute()
+  
+  cdm$sample2 <- cdm$sample %>% 
+    left_join(cdm$person %>% select(person_id, year_of_birth, gender_concept_id ),
+              by=join_by(subject_id==person_id))  %>% compute()
+  
+  
+  
+  cdm$person_obs <- cdm$person %>% slice_sample( n=1000, by =year_of_birth )  %>% left_join(cdm$observation_period ) %>% compute()
+  
+  cdm$matched_cohort <- cdm$sample2 %>% left_join(cdm$person_obs , by=join_by(year_of_birth==year_of_birth, 
+                                                                              gender_concept_id==gender_concept_id),
+                                                  relationship = "many-to-many", 
+                                                  keep=T)  %>% 
+    filter(cohort_start_date>=observation_period_start_date, cohort_start_date<=observation_period_end_date) %>%
+    distinct(subject_id, cohort_definition_id, .keep_all = TRUE) %>% 
+    select(person_id,cohort_start_date,cohort_end_date, cohort_definition_id ) %>%
+    rename( subject_id =person_id    ) %>% compute()
 }
- 
- # 
- # con <- attr(cdm, "dbcon")
- # DBI::dbWriteTable(con, matched_cohort, overwrite = TRUE, name=Id(schema = "Results",table=paste0(prefix,"matched_cohort_test")))
- # cohort_ref <- dplyr::tbl(con, Id(schema = "Results",table=paste0(prefix,"matched_cohort_test")))
- # 
- # DBI::dbWriteTable(con, settings(cdm$sample) , overwrite = TRUE, name=Id(schema = "Results",table=paste0(prefix,"matched_cohort_test_set")))
- # cohort_set_ref <- dplyr::tbl(con, Id(schema = "Results",table=paste0(prefix,"matched_cohort_test_set")))
- # 
- # 
- # cdm[["matched_cohort"]] <- cohort_ref %>% compute()  
- # 
- # cdm$matched_cohort <- omopgenerics::newCohortTable(cdm[["matched_cohort"]],cohortSetRef = cohort_set_ref)
- # 
- # 
-toc(log = TRUE)
 
+# 
+# con <- attr(cdm, "dbcon")
+# DBI::dbWriteTable(con, matched_cohort, overwrite = TRUE, name=Id(schema = "PhenoResults",table=paste0(prefix,"matched_cohort_test")))
+# cohort_ref <- dplyr::tbl(con, Id(schema = "PhenoResults",table=paste0(prefix,"matched_cohort_test")))
+# 
+# DBI::dbWriteTable(con, settings(cdm$sample) , overwrite = TRUE, name=Id(schema = "PhenoResults",table=paste0(prefix,"matched_cohort_test_set")))
+# cohort_set_ref <- dplyr::tbl(con, Id(schema = "PhenoResults",table=paste0(prefix,"matched_cohort_test_set")))
+# 
+# 
+# cdm[["matched_cohort"]] <- cohort_ref %>% compute()  
+# 
+# cdm$matched_cohort <- omopgenerics::newCohortTable(cdm[["matched_cohort"]],cohortSetRef = cohort_set_ref)
+# 
+# 
+toc(log = TRUE)
 
 tic("LargeScaleChar matched")
 if (input$runMatchedSampleLSC) {
   large_scale_char_matched <- summariseLargeScaleCharacteristics(
-    cohort = cdm$matched_cohort,
+    cohort=cdm$matched_cohort,
     window = list(c(-Inf, -366), c(-365, -31), c(-30, -1), 
                   c(0, 0), 
                   c(1, 30), c(31, 365),  c(366, Inf)),
@@ -395,17 +380,16 @@ if (input$runMatchedSampleLSC) {
     minimumFrequency = 0.0005
   )
   output$lsc_matched <- large_scale_char_matched %>% mutate(cdm_name = input$cdmName)
-  write_csv(output$lsc_matched, here("Results", paste0(
+  write_csv(output$lsc_matched, here("PhenoResults", paste0(
     "lsc_matched_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
 }
 toc(log = TRUE)
 
-
-tic("LargeScaleChar sample")
+tic("LArgeScaleChar sample")
 if (input$runMatchedSampleLSC) {
   large_scale_char_sample <- summariseLargeScaleCharacteristics(
-    cohort = cdm$sample,
+    cohort=cdm$sample,
     window = list(c(-Inf, -366), c(-365, -31), c(-30, -1), 
                   c(0, 0), 
                   c(1, 30), c(31, 365),  c(366, Inf)),
@@ -417,13 +401,13 @@ if (input$runMatchedSampleLSC) {
     minimumFrequency = 0.0005
   )
   output$lsc_sample <- large_scale_char_sample %>% mutate(cdm_name = input$cdmName)
-  write_csv(output$lsc_sample, here("Results", paste0(
+  write_csv(output$lsc_sample, here("PhenoResults", paste0(
     "lsc_sample_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
 }
 toc(log = TRUE)
 
-tic("LargeScaleChar difference")
+tic("LArgeScaleChar difference")
 if (input$runMatchedSampleLSC) {
   difference <- large_scale_char_sample  %>% 
     left_join( large_scale_char_matched, 
@@ -442,7 +426,7 @@ if (input$runMatchedSampleLSC) {
   # rm(matched_cohort)
   
   output$lsc_difference <- difference %>% mutate(cdm_name = input$cdmName)
-  write_csv(output$lsc_difference, here("Results", paste0(
+  write_csv(output$lsc_difference, here("PhenoResults", paste0(
     "lsc_difference_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
 }
@@ -453,7 +437,7 @@ toc(log = TRUE)
 # Stratified by Age 10y, Gender, Calendar Year
 # For now stratified by kid-Adult-Older Adult 
 # it is the step it takes longest
- 
+
 tic(msg = "Incidence Prevalence Sampling + Denominator")
 if (input$runIncidence|input$runPrevalence) {
   if (is.null(input$sampleIncidencePrevalence)) {
@@ -487,7 +471,7 @@ if (input$runIncidence ) {
     outcomeWashout = Inf,
     completeDatabaseIntervals = FALSE,
     minCellCount = 0 ) 
-  write_csv(output$incidence |> IncidencePrevalence:::obscureCounts(), here("Results", paste0(
+  write_csv(output$incidence |> IncidencePrevalence:::obscureCounts(), here("PhenoResults", paste0(
     "incidence_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
   
@@ -508,7 +492,7 @@ if (input$runPrevalence ) {
     fullContribution = FALSE,
     minCellCount = 5
   )
-  write_csv(output$prevalence, here("Results", paste0(
+  write_csv(output$prevalence, here("PhenoResults", paste0(
     "prevalence_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
   )))
 }
@@ -526,28 +510,28 @@ tic.log(format = TRUE)
 tic_log <- tic.log(format = TRUE)
 
 output$log <- tibble(cdm_name = input$cdmName, log = paste0(tic_log %>%  unlist(), collapse = "\n"))
-write_csv(output$log, here("Results", paste0(
+write_csv(output$log, here("PhenoResults", paste0(
   "log_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 )))
 
 
 
-# zip Results -----
-# zip all Results -----
-# cli::cli_text("- Zipping Results ({Sys.time()})")
-# files_to_zip <- list.files(here("Results"))
-# files_to_zip <- files_to_zip[str_detect(files_to_zip,
-#                                         db_Name)]
-# files_to_zip <- files_to_zip[str_detect(files_to_zip,
-#                                         ".csv")]
-# 
-# zip::zip(zipfile = file.path(paste0(
-#   here("Results"), "/PhenotypeResults_", study_prefix,"_", db_Name, ".zip"
-# )),
-# files = files_to_zip,
-# root = here("Results"))
+# zip PhenoResults -----
+# zip all PhenoResults -----
+cli::cli_text("- Zipping PhenoResults ({Sys.time()})")
+files_to_zip <- list.files(here("PhenoResults"))
+files_to_zip <- files_to_zip[str_detect(files_to_zip,
+                                        db_name)]
+files_to_zip <- files_to_zip[str_detect(files_to_zip,
+                                        ".csv")]
 
-if (input$exportResultsRData) {
+zip::zip(zipfile = file.path(paste0(
+  here("PhenoResults"), "/PhenoResults_", writePrefix,"_", db_name, ".zip"
+)),
+files = files_to_zip,
+root = here("PhenoResults"))
+
+if (input$exportPhenoResultsRData) {
   analyses_performed <- as.integer(c(input$runGenerateCohort, 
                                      input$runCalculateOverlap,
                                      input$runCountCodes,
@@ -562,5 +546,5 @@ if (input$exportResultsRData) {
   analyses_performed <-  paste(analyses_performed , collapse = "_")
   
   save(input, output, 
-       file = here(paste0("Results/", input$cdmName, "_", cohorts_name,"_", analyses_performed, "_" ,format(Sys.time(), "_%Y_%m_%d") , ".RData")))
+       file = here(paste0("PhenoResults/", input$cdmName, "_", cohorts_name,"_", analyses_performed, "_" ,format(Sys.time(), "_%Y_%m_%d") , ".RData")))
 }

@@ -39,7 +39,10 @@ vignettes/*.pdf
 .Renviron
 
 # Results file
-Study/Results/
+Results/
 
 # Code to run
-Study/CodeToRun.R
+CodeToRun.R
+
+#
+PhenotypeR/Phoebe/concept_recommended.csv

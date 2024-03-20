@@ -29,10 +29,10 @@ info(logger, "CDM OBJECT CREATED")
 toc(log = TRUE)
 
 # create and export snapshot
-cdm_snapshot <- snapshot(cdm)
-write.csv(cdm_snapshot, here("Results", paste0(
-  "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
-)))
+# cdm_snapshot <- snapshot(cdm)
+# write.csv(cdm_snapshot, here("Results", paste0(
+#   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
+# )))
 
 tic(msg = "Instantiation of Cohorts: ")
 # instantiate necessary cohorts ----
