@@ -1,0 +1,7 @@
+cohort_definition_id_x,cohort_definition_id_y,intersect_count,cdm_name
+5,4,9,cdmGold
+5,1,9,cdmGold
+4,1,9,cdmGold
+1,5,9,cdmGold
+4,5,9,cdmGold
+1,4,9,cdmGold
