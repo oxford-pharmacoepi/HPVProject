@@ -40,6 +40,7 @@ vignettes/*.pdf
 
 # Results file
 Results/
+PhenotypeR/
 
 # Code to run
 CodeToRun.R
