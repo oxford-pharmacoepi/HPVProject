@@ -134,7 +134,7 @@ cdm <- cdm |>
 last_pair <- 0
 
 for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
-  #sy <- 2008
+  sy <- 2021
   # Execution time
   start_time <- Sys.time()
   
@@ -346,9 +346,10 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     dataMatched <- matchit(vac_status ~ . - subject_id,
                            data = dataMatching, 
                            exact = c("year_of_birth","region"), 
-                           caliper = 0.2, 
                            method = "nearest", 
-                           distance = "glm")
+                           distance = "glm",
+                           caliper = 0.2
+                           )
     
     # Save matched cohort
     sub_matched <- as_tibble(match.data(dataMatched)) |> 

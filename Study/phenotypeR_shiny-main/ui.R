@@ -52,7 +52,7 @@ ui <- dashboardPage(
         tabName = "incidence"
       ),
       menuItem(
-        text = "Large sclae characterisation",
+        text = "Large scale characterisation",
         tabName = "large_scale_characterisation"
       ),
       menuItem(
