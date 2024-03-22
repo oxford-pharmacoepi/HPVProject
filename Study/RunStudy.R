@@ -24,7 +24,11 @@ cdm <- cdmFromCon(
   writeSchema = writeSchema, 
   cdmName = dbName, 
   achillesSchema = achillesSchema,
+<<<<<<< HEAD
   cohortTables = "allvac_cohort"
+=======
+  cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+>>>>>>> 5966c558c99a19585408c6c50ced1e975cbcf89b
 )
 info(logger, "CDM OBJECT CREATED")
 toc(log = TRUE)
@@ -35,18 +39,18 @@ toc(log = TRUE)
 #   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 # )))
 
-tic(msg = "Instantiation of Cohorts: ")
-# instantiate necessary cohorts ----
-#info(logger, "INSTANTIATING STUDY COHORTS")
-source(here("Cohorts", "InstantiateCohorts.R"))
-info(logger, "STUDY COHORTS INSTANTIATED")
-toc(log = TRUE)
+# tic(msg = "Instantiation of Cohorts: ")
+# # instantiate necessary cohorts ----
+# #info(logger, "INSTANTIATING STUDY COHORTS")
+# source(here("Cohorts", "InstantiateCohorts.R"))
+# info(logger, "STUDY COHORTS INSTANTIATED")
+# toc(log = TRUE)
 
-tic(msg = "Instantiation of Characteristics: ")
-info(logger, "INSTANTIATING STUDY CHARACTERISTICS")
-source(here("Cohorts", "InstantiateCharacteristics.R"))
-info(logger, "CHARACTERISTICS INSTANTIATED")
-toc(log = TRUE)
+# tic(msg = "Instantiation of Characteristics: ")
+# info(logger, "INSTANTIATING STUDY CHARACTERISTICS")
+# source(here("Cohorts", "InstantiateCharacteristics.R"))
+# info(logger, "CHARACTERISTICS INSTANTIATED")
+# toc(log = TRUE)
 
 # tic(msg = "PhenotypeR: ")
 # # run diagnostics ----
@@ -55,18 +59,18 @@ toc(log = TRUE)
 # info(logger, "PHENOTYPER FINISHED")
 # toc(log = TRUE)
 
-tic(msg = "Matching: ")
-# run analyses ----
-info(logger, "RUN MATCHING")
-source(here("Analyses", "1-PSMatchingImplementation.R"))
-info(logger, "MATCHING FINISHED")
-toc(log = TRUE)
-
-tic(msg = "Characterisation: ")
-info(logger, "RUN CHARACTERISATION")
-source(here("Analyses", "2-Characterisation.R"))
-info(logger, "CHARACTERISATION FINISHED")
-toc(log = TRUE)
+# tic(msg = "Matching: ")
+# # run analyses ----
+# info(logger, "RUN MATCHING")
+# source(here("Analyses", "1-PSMatchingImplementation.R"))
+# info(logger, "MATCHING FINISHED")
+# toc(log = TRUE)
+# 
+# tic(msg = "Characterisation: ")
+# info(logger, "RUN CHARACTERISATION")
+# source(here("Analyses", "2-Characterisation.R"))
+# info(logger, "CHARACTERISATION FINISHED")
+# toc(log = TRUE)
 
 #tic(msg = "Outcome model: ")
 #info(logger, "RUN OUTCOME MODEL")
@@ -76,8 +80,8 @@ toc(log = TRUE)
 
 
 # export results ----
-info(logger, "EXPORTING RESULTS")
-zip(
-  zipfile = file.path(paste0(resultsFolder, "/Results_", cdmName(cdm), ".zip")),
-  files = list.files(resultsFolder, full.names = TRUE)
-)
+# info(logger, "EXPORTING RESULTS")
+# zip(
+#   zipfile = file.path(paste0(resultsFolder, "/Results_", cdmName(cdm), ".zip")),
+#   files = list.files(resultsFolder, full.names = TRUE)
+# )

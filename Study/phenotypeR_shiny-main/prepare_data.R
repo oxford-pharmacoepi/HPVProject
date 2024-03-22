@@ -14,7 +14,6 @@ result_names <- c("cohort_definitions", "cohort_count", "code_counts", "cohort_o
                   "index_events", "lsc_sample", "lsc_matched", "lsc_difference", "log",
                   "snapshot")
 
-dataFolder <- "PhenoResults"
 # Result files
 result_files <- list.files(path = here(dataFolder), pattern = "\\.csv$", full.names = TRUE)
 

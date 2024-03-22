@@ -1,7 +1,21 @@
+library(CDMConnector)
+library(DBI)
+library(dbplyr)
+library(dplyr)
 library(CodelistGenerator)
+library(PatientProfiles)
+library(here)
+library(DrugUtilisation)
+library(IncidencePrevalence)
+library(tictoc)
+library(readr)
+library(stringr)
+library(testthat)
+library(SqlRender)
+
 # settings ------
 input <- list(
-  runGenerateCohort = FALSE,              #### Generate cohort or use preloaded cohorts
+  runGenerateCohort = TRUE,              #### Generate cohort or use preloaded cohorts
   runCalculateOverlap = TRUE,            #### Calculate Overlap
   runCountCodes = TRUE,                  #### run orphan codes and count codes
   runIndexEvents = TRUE,                 #### run index events
@@ -54,22 +68,14 @@ toc(log = TRUE)
 # Connect to database using CDMConnector ########
 tic(msg = "Connect to database")
 
-if (input$runGenerateCohort) {
-  cdm <- cdm_from_con(con = db,
-                      cdm_schema = c(schema = cdmSchema),
-                      write_schema = writeSchema,
-                      achilles_schema = achillesSchema, 
-                      cdm_name = dbName
-  )
-} else   {
+if (! input$runGenerateCohort) {
   cdm <- cdm_from_con(con = db,
                       cdm_schema = c(schema = cdmSchema),
                       write_schema = writeSchema,
                       achilles_schema = achillesSchema,
-                      cohort_tables = cohorts_name, # to load cohorts already there
+                      cohort_tables = c(cohorts_name, "vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology"), # to load cohorts already there
                       cdm_name = dbName  
   )
-  
 }
 
 toc(log = TRUE)
@@ -270,9 +276,9 @@ tic(msg = "Patient_profiles summary")
 #cdm$PhenoResults_dx <- cdm[[cohorts_name]]
 if (input$runProfiling) {
   Patient_profiles <- cdm[[cohorts_name]] %>%
-    addDemographics(cdm) %>% 
+    addDemographics() %>% 
     collect()   %>%
-    mutate( age_group= cut(age, c(seq(0, 110, 5 ), Inf), include.lowest=TRUE))
+    mutate(age_group= cut(age, c(seq(0, 110, 5 ), Inf), include.lowest=TRUE))
   
   
   
@@ -518,33 +524,33 @@ write_csv(output$log, here("PhenoResults", paste0(
 
 # zip PhenoResults -----
 # zip all PhenoResults -----
-cli::cli_text("- Zipping PhenoResults ({Sys.time()})")
-files_to_zip <- list.files(here("PhenoResults"))
-files_to_zip <- files_to_zip[str_detect(files_to_zip,
-                                        db_name)]
-files_to_zip <- files_to_zip[str_detect(files_to_zip,
-                                        ".csv")]
-
-zip::zip(zipfile = file.path(paste0(
-  here("PhenoResults"), "/PhenoResults_", writePrefix,"_", db_name, ".zip"
-)),
-files = files_to_zip,
-root = here("PhenoResults"))
-
-if (input$exportPhenoResultsRData) {
-  analyses_performed <- as.integer(c(input$runGenerateCohort, 
-                                     input$runCalculateOverlap,
-                                     input$runCountCodes,
-                                     input$runIndexEvents,
-                                     input$runProfiling, 
-                                     input$runMatchedSampleLSC, 
-                                     input$runIncidence, 
-                                     input$runPrevalence, 
-                                     !is.null(input$sampleIncidencePrevalence)
-  ))
-  
-  analyses_performed <-  paste(analyses_performed , collapse = "_")
-  
-  save(input, output, 
-       file = here(paste0("PhenoResults/", input$cdmName, "_", cohorts_name,"_", analyses_performed, "_" ,format(Sys.time(), "_%Y_%m_%d") , ".RData")))
-}
+# cli::cli_text("- Zipping PhenoResults ({Sys.time()})")
+# files_to_zip <- list.files(here("PhenoResults"))
+# files_to_zip <- files_to_zip[str_detect(files_to_zip,
+#                                         db_name)]
+# files_to_zip <- files_to_zip[str_detect(files_to_zip,
+#                                         ".csv")]
+# 
+# zip::zip(zipfile = file.path(paste0(
+#   here("PhenoResults"), "/PhenoResults_", writePrefix,"_", db_name, ".zip"
+# )),
+# files = files_to_zip,
+# root = here("PhenoResults"))
+# 
+# if (input$exportPhenoResultsRData) {
+#   analyses_performed <- as.integer(c(input$runGenerateCohort, 
+#                                      input$runCalculateOverlap,
+#                                      input$runCountCodes,
+#                                      input$runIndexEvents,
+#                                      input$runProfiling, 
+#                                      input$runMatchedSampleLSC, 
+#                                      input$runIncidence, 
+#                                      input$runPrevalence, 
+#                                      !is.null(input$sampleIncidencePrevalence)
+#   ))
+#   
+#   analyses_performed <-  paste(analyses_performed , collapse = "_")
+#   
+#   save(input, output, 
+#        file = here(paste0("PhenoResults/", input$cdmName, "_", cohorts_name,"_", analyses_performed, "_" ,format(Sys.time(), "_%Y_%m_%d") , ".RData")))
+# }
