@@ -26,15 +26,15 @@ library(packrat)
 library(visOmopResults)
 
 # Variables
-dataFolder <- "PhenoResults"
+dataFolder <- "data/PhenoResults"
 
 # Functions
-source(here("phenotypeR_shiny-main", "functions_shiny.R"))
+source(here("functions_shiny.R"))
 print("finish")
 # Data
-source(here("phenotypeR_shiny-main","prepare_data.R"))
+source(here("prepare_data.R"))
 print("finish")
 # App
-source(here("phenotypeR_shiny-main","ui.R"))
-source(here("phenotypeR_shiny-main","server.R"))
+source(here("ui.R"))
+source(here("server.R"))
 shinyApp(ui, server)
