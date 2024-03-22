@@ -39,9 +39,7 @@ vignettes/*.pdf
 .Renviron
 
 # Results file
-Study/Results/
-Study/PhenoResults/
-Study/phenotypeR_shiny-main
+phenotypeR_shiny-main
 
 # Code to run
 Study/CodeToRun.R
