@@ -1,6 +1,7 @@
 library(tidyr)
 library(CDMConnector)
 library(MatchIt)
+library(Matching)
 library(RPostgres)
 library(glmnet)
 library(purrr)
@@ -12,8 +13,8 @@ source(here("Analyses","FuncionsMAH.R"))
 
 
 # Details
-log_file        <- here(resultsFolder, "log_MatchingData.txt")
-logger          <- create.logger(logfile = log_file, level = "INFO")
+# log_file        <- here(resultsFolder, "log_MatchingData.txt")
+# logger          <- create.logger(logfile = log_file, level = "INFO")
 info(logger = logger, "CREATE INITIAL POPULATION")
 
 # Total Population
@@ -28,15 +29,15 @@ info(logger = logger, paste0("Size Unvacc Population = ", size_unvacpop))
 # Total conditions and drugs
 Conditions <- cdm$condition_occurrence |> 
   rename(subject_id = person_id, concept_id = condition_concept_id, occurrence_start_date = condition_start_date) |>
-  left_join(cdm$concept |> select(concept_id, concept_name), by = "concept_id") |>
-  select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
+  left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
   mutate(occurrence_type = "condition") |> 
   compute()
 
 Drugs <-  cdm$drug_exposure |> 
   rename(subject_id = person_id, concept_id = drug_concept_id, occurrence_start_date = drug_exposure_start_date)|> 
-  left_join(cdm$concept |> select(concept_id, concept_name), by = "concept_id") |>
-  select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
+  left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
   mutate(occurrence_type = "drug") |> 
   compute()
 
@@ -44,40 +45,40 @@ ConditionsAndDrugs <- union_all(Conditions, Drugs) |>
   mutate(occurrence_flag = 1) |>
   inner_join(population, by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
-  select(subject_id, concept_id, concept_name, occurrence_start_date, occurrence_type, occurrence_flag) |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date, occurrence_type, occurrence_flag) |>
   compute()
 
 # Prepare covariates
 hiv_status <- population |>
-  select(subject_id, date_15years) |>
+  dplyr::select(subject_id, date_15years) |>
   inner_join(cdm$hiv_status |> 
-               select(subject_id, cohort_start_date) |> 
+               dplyr::select(subject_id, cohort_start_date) |> 
                rename(occurrence_start_date = cohort_start_date), by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
   group_by(subject_id) |>
   filter(occurrence_start_date == min(occurrence_start_date)) |>
   ungroup() |>
   mutate(hiv_status = 1) |>
-  select(subject_id, hiv_status) |>
+  dplyr::select(subject_id, hiv_status) |>
   compute()
 
 papanicolau_smear_test <- population |>
-  select(subject_id, date_15years) |>
+  dplyr::select(subject_id, date_15years) |>
   inner_join(cdm$papanicolau_smear_testing |> 
-               select(subject_id, cohort_start_date) |> 
+               dplyr::select(subject_id, cohort_start_date) |> 
                rename(occurrence_start_date = cohort_start_date), by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
   group_by(subject_id) |>
   filter(occurrence_start_date == min(occurrence_start_date)) |>
   ungroup() |>
   mutate(papanicolau = 1) |>
-  select(subject_id, papanicolau) |>
+  dplyr::select(subject_id, papanicolau) |>
   compute()
 
 vaccinations <- population |>
-  select(subject_id, date_15years) |>
+  dplyr::select(subject_id, date_15years) |>
   inner_join(cdm$vaccinations |> 
-               select(subject_id, cohort_start_date) |> 
+               dplyr::select(subject_id, cohort_start_date) |> 
                rename(occurrence_start_date = cohort_start_date), by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
   group_by(subject_id) |>
@@ -86,16 +87,16 @@ vaccinations <- population |>
   compute()
 
 cytology <- population |>
-  select(subject_id, date_15years) |>
+  dplyr::select(subject_id, date_15years) |>
   inner_join(cdm$cytology |> 
-               select(subject_id, cohort_start_date) |> 
+               dplyr::select(subject_id, cohort_start_date) |> 
                rename(occurrence_start_date = cohort_start_date), by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
   group_by(subject_id) |>
   filter(occurrence_start_date == min(occurrence_start_date)) |>
   ungroup() |>
   mutate(cytology = 1) |>
-  select(subject_id, cytology) |>
+  dplyr::select(subject_id, cytology) |>
   compute()
 
 # Only take into account 1st dose vaccination
@@ -123,6 +124,7 @@ total_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
                                "pair_id" = as.numeric()
 )
 
+
 cdm <- cdm |>
   CDMConnector::insertTable(
     name = "total_matched_cohort",
@@ -148,7 +150,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
                             inner_join(cdm$allvac_cohort |> 
                                          filter(cohort_start_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")), 
                                                 cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-12-31"))) |> 
-                                         select(subject_id)
+                                         dplyr::select(subject_id)
                             )
   ) |> 
     compute()
@@ -192,7 +194,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
   # Add year of birth
   subpopulation <- subpopulation |> 
     inner_join(cdm$person |> 
-                 select(person_id, year_of_birth) |> 
+                 dplyr::select(person_id, year_of_birth) |> 
                  rename(subject_id = person_id)
     ) |>
     addVisitsPriorYear() |>
@@ -218,7 +220,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Subpopulation as Lasso Input
     sub_ConditionsAndDrugs <- subpopulation |> 
-      select(subject_id, index_date, year_of_birth, vac_status) |> 
+      dplyr::select(subject_id, index_date, year_of_birth, vac_status) |> 
       inner_join(
         # Occurrence Record before index date
         ConditionsAndDrugs, by = "subject_id"
@@ -238,7 +240,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       filter(!is.na(window)) |>
       mutate(
         concept = paste0(window, "_", round(as.numeric(concept_id),0))) |>
-      select(subject_id, concept, concept_name, occurrence_flag) |>
+      dplyr::select(subject_id, concept, concept_name, occurrence_flag) |>
       distinct() |>
       compute()
     
@@ -261,7 +263,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       group_by(concept) |> 
       tally() |>
       filter(n < 0.005*size_subpopulation) |> 
-      select(concept) |>
+      dplyr::select(concept) |>
       compute()
     
     # Eliminate occurrences with low frequencies and generate a column for each occurrence
@@ -273,7 +275,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Add Drugs and Conditions, and covariates
     subpop_data <- subpopulation |> 
-      select(subject_id, index_date, year_of_birth, vac_status) |> 
+      dplyr::select(subject_id, index_date, year_of_birth, vac_status) |> 
       addVisitsPriorYear() |>
       addPreviousVaccinations() |>
       left_join(papanicolau_smear_test, by = "subject_id") |>
@@ -288,7 +290,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # All conditions and drugs present in the subjects previous to the index_date
     x <- in_data |> 
-      select(! c(subject_id, index_date, vac_status, year_of_birth)) |> 
+      dplyr::select(! c(subject_id, index_date, vac_status, year_of_birth)) |> 
       as_tibble() |>
       mutate_all(~replace(., is.na(.), 0)) |> 
       data.matrix() 
@@ -296,7 +298,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Vac_status = 0/1
     y <- in_data |> 
-      select(vac_status) |> 
+      dplyr::select(vac_status) |> 
       compute() |> 
       as_tibble() |> 
       data.matrix()
@@ -325,7 +327,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
             mutate("concept_id" = as.numeric(gsub(".*_","",concept_id))) |>
             inner_join(
               ConditionsAndDrugs |>
-                select("concept_id","concept_name") |>
+                dplyr::select("concept_id","concept_name") |>
                 distinct() |>
                 as_tibble() |> as.data.frame(),
               by = "concept_id"
@@ -336,26 +338,69 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Apply matching
     # Add Region and previous visits
-    dataMatching <- subpop_data |> 
-      addRegion() |> 
-      select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
-      as_tibble()  |>  
-      mutate_all(~replace(., is.na(.), 0)) |>
-      compute()
-    # Match
-    dataMatched <- matchit(vac_status ~ . - subject_id,
-                           data = dataMatching, 
-                           exact = c("year_of_birth","region"), 
-                           caliper = 0.2, 
-                           method = "nearest", 
-                           distance = "glm")
     
+    # Match
+    
+    if(is.null(selectedLassoFeatures)){
+      print("is null")
+      region_type <- "num"       # Matching no accepta "character" variables
+
+      dataMatching <- subpop_data |> 
+        addRegion() |> 
+        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
+        as_tibble()  |>  
+        mutate_all(~replace(., is.na(.), 0)) |>
+        compute()
+      
+      dataMatched <- Match(Tr = dataMatching$vac_status,
+                           X = subset(dataMatching, select = c(year_of_birth, region)),
+                           M = 1,
+                           exact = TRUE,
+                           ties = FALSE,
+                           replace = FALSE)
+
+      # Add subclass
+      treated <- dataMatching[dataMatched$index.treated, ] |>
+        mutate(subclass = 1:dataMatched$wnobs)
+      control <- dataMatching[dataMatched$index.control, ] |>
+        mutate(subclass = 1:dataMatched$wnobs)
+
+      # Save matched cohorts
+      sub_matched <- union_all(treated, control)
+      
+      # dataMatched <- matchit(vac_status ~ . - subject_id,
+      #                        data = dataMatching,
+      #                        method = "exact",
+      #                        ratio = 1,
+      #                        ties = FALSE
+      #                        )
+    } else {
+      print("not null")
+      region_type <- "char"
+      
+      dataMatching <- subpop_data |> 
+        addRegion("char") |> 
+        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
+        as_tibble()  |>  
+        mutate_all(~replace(., is.na(.), 0)) |>
+        compute()
+      
+      dataMatched <- matchit(vac_status ~ . - subject_id,
+                             data = dataMatching, 
+                             exact = c("year_of_birth","region"), 
+                             caliper = 0.2, 
+                             method = "nearest", 
+                             distance = "glm",
+                             ratio = 1
+                             )
+
+    }
     # Save matched cohort
     sub_matched <- as_tibble(match.data(dataMatched)) |> 
-      select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
+      dplyr::select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
       compute()
-    
-    n_matched <- as.numeric(sub_matched |> tally() |> pull())
+
+        n_matched <- as.numeric(sub_matched |> tally() |> pull())
     info(logger = logger, paste0("Matched = ", n_matched))
     
     cdm <- cdm |>
@@ -367,7 +412,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     cohort_name <- paste0("sub_",as.integer(sy),"_matched_cohort")
     cdm[[cohort_name]] <- cdm[[cohort_name]] |> 
       left_join(subpopulation |> 
-                  select(cohort_definition_id, subject_id, cohort_start_date, cohort_end_date), 
+                  dplyr::select(cohort_definition_id, subject_id, cohort_start_date, cohort_end_date), 
                 by = "subject_id"
       ) |>
       mutate(cohort_definition_id = as.integer(sy))
@@ -380,7 +425,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Eliminate matched individuals from the population cohort
     population <- anti_join(population,cdm[[cohort_name]] |> 
-                              select(subject_id)
+                              dplyr::select(subject_id)
     ) |> 
       anti_join(subpopulation |> 
                   filter(vac_status == 1), 
@@ -398,7 +443,11 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       ) |> 
       compute()
     
-    last_pair <- last_pair + (n_matched/2)
+    last_pair <- cdm$total_matched_cohort |> 
+      dplyr::select(pair_id) |> 
+      as.array() |> 
+      collect() |> 
+      max()
   }
   # Time execution
   end_time <- Sys.time()
@@ -422,12 +471,12 @@ cdm$total_vac_matched_cohort <- cdm$total_matched_cohort |>
   recordCohortAttrition("Exclude not matched individuals")
 
 cdm$total_vac_matched_cohort <- cdm$total_vac_matched_cohort |>
-  inner_join(cdm$allvac_cohort |> select(subject_id, cohort_start_date) |> rename(index_date = cohort_start_date), by = "subject_id") |>
+  inner_join(cdm$allvac_cohort |> dplyr::select(subject_id, cohort_start_date) |> rename(index_date = cohort_start_date), by = "subject_id") |>
   compute(name = "total_vac_matched_cohort", temporary = FALSE)
 
 cdm$total_unvac_matched_cohort <- cdm$total_matched_cohort |> 
   filter(cohort_definition_id == 10) |> 
-  inner_join(cdm$total_vac_matched_cohort |> select(pair_id, index_date), by = "pair_id") |>
+  inner_join(cdm$total_vac_matched_cohort |> dplyr::select(pair_id, index_date), by = "pair_id") |>
   mutate(cohort_start_date = as.Date(index_date)) |>
   compute(name = "total_unvac_matched_cohort", temporary = FALSE) |>
   newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("total_unvac_matched_cohort")),
@@ -441,12 +490,12 @@ cdm$total_vac_matched_cohort <- cdm$total_vac_matched_cohort |>
 # Change cohort start date for the vaccination date /index date
  cdm$vac_cohort <- cdm$vac_cohort |>
    mutate(cohort_start_date = as.Date(date_15years)) |>
-   select(! date_15years) |>
+   dplyr::select(! date_15years) |>
    compute(name = "vac_cohort", temporary = FALSE)
 
  cdm$unvac_cohort <- cdm$unvac_cohort |>
    mutate(cohort_start_date = as.Date(date_15years)) |>
-   select(! date_15years) |>
+   dplyr::select(! date_15years) |>
    compute(name = "unvac_cohort", temporary = FALSE)
 
 # Write the results
@@ -471,4 +520,4 @@ write.csv(vac_attrition, paste0(resultsFolder,"/vac_attrition_",cdmSchema,".csv"
 write.csv(unvac_attrition, paste0(resultsFolder,"/unvac_attrition_",cdmSchema,".csv"), row.names = FALSE)
 
 
-info(logger = logger, paste0("THE END"))
+#info(logger = logger, paste0("THE END"))
