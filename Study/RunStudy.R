@@ -12,8 +12,8 @@ tic.clear()
 tic(msg = "HPVStudy Total run time: ")
 
 # parameters ----
-instantiateCohorts <- FALSE
-instantiateCharacteristics <- FALSE
+instantiateCohorts <- TRUE
+instantiateCharacteristics <- TRUE
 
 tic(msg = "Creation of CDM object: ")
 # create cdm object ----
@@ -24,7 +24,7 @@ cdm <- cdmFromCon(
   writeSchema = writeSchema, 
   cdmName = dbName, 
   achillesSchema = achillesSchema,
-  cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+  #cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
 )
 info(logger, "CDM OBJECT CREATED")
 toc(log = TRUE)
@@ -35,18 +35,18 @@ toc(log = TRUE)
 #   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 # )))
 
-# tic(msg = "Instantiation of Cohorts: ")
-# # instantiate necessary cohorts ----
-# #info(logger, "INSTANTIATING STUDY COHORTS")
-# source(here("Cohorts", "InstantiateCohorts.R"))
-# info(logger, "STUDY COHORTS INSTANTIATED")
-# toc(log = TRUE)
+tic(msg = "Instantiation of Cohorts: ")
+# instantiate necessary cohorts ----
+#info(logger, "INSTANTIATING STUDY COHORTS")
+source(here("Cohorts", "InstantiateCohorts.R"))
+info(logger, "STUDY COHORTS INSTANTIATED")
+toc(log = TRUE)
 
-# tic(msg = "Instantiation of Characteristics: ")
-# info(logger, "INSTANTIATING STUDY CHARACTERISTICS")
-# source(here("Cohorts", "InstantiateCharacteristics.R"))
-# info(logger, "CHARACTERISTICS INSTANTIATED")
-# toc(log = TRUE)
+tic(msg = "Instantiation of Characteristics: ")
+info(logger, "INSTANTIATING STUDY CHARACTERISTICS")
+source(here("Cohorts", "InstantiateCharacteristics.R"))
+info(logger, "CHARACTERISTICS INSTANTIATED")
+toc(log = TRUE)
 
 tic(msg = "PhenotypeR: ")
 # run diagnostics ----
@@ -55,18 +55,18 @@ source(here("PhenotypeR", "PhenotypeR.R"))
 info(logger, "PHENOTYPER FINISHED")
 toc(log = TRUE)
 
-# tic(msg = "Matching: ")
-# # run analyses ----
-# info(logger, "RUN MATCHING")
-# source(here("Analyses", "1-PSMatchingImplementation.R"))
-# info(logger, "MATCHING FINISHED")
-# toc(log = TRUE)
-# 
-# tic(msg = "Characterisation: ")
-# info(logger, "RUN CHARACTERISATION")
-# source(here("Analyses", "2-Characterisation.R"))
-# info(logger, "CHARACTERISATION FINISHED")
-# toc(log = TRUE)
+tic(msg = "Matching: ")
+# run analyses ----
+info(logger, "RUN MATCHING")
+source(here("Analyses", "1-PSMatchingImplementation.R"))
+info(logger, "MATCHING FINISHED")
+toc(log = TRUE)
+
+tic(msg = "Characterisation: ")
+info(logger, "RUN CHARACTERISATION")
+source(here("Analyses", "2-Characterisation.R"))
+info(logger, "CHARACTERISATION FINISHED")
+toc(log = TRUE)
 
 #tic(msg = "Outcome model: ")
 #info(logger, "RUN OUTCOME MODEL")
