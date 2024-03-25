@@ -136,7 +136,7 @@ cdm <- cdm |>
 last_pair <- 0
 
 for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
-  #sy <- 2008
+  #sy <- 2021
   # Execution time
   start_time <- Sys.time()
   
@@ -338,6 +338,23 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Apply matching
     # Add Region and previous visits
+<<<<<<< HEAD
+=======
+    dataMatching <- subpop_data |> 
+      addRegion() |> 
+      select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
+      as_tibble()  |>  
+      mutate_all(~replace(., is.na(.), 0)) |>
+      compute()
+    # Match
+    dataMatched <- matchit(vac_status ~ . - subject_id,
+                           data = dataMatching, 
+                           exact = c("year_of_birth","region"), 
+                           method = "nearest", 
+                           distance = "glm",
+                           caliper = 0.2
+                           )
+>>>>>>> 5966c558c99a19585408c6c50ced1e975cbcf89b
     
     # Match
     
