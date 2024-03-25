@@ -137,10 +137,10 @@ updateAttrition <- function(cohort, cohortId, reason) {
 }
 
 addRegion <- function(x) {
-
+  
   cdm <- attr(x, "cdm_reference")
-
-  if (cdmName(cdm) == "CPRD GOLD") {
+  
+  if (region_type == "char") {
     x |>
       dplyr::left_join(
         cdm$person |>

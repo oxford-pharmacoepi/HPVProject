@@ -24,7 +24,15 @@ cdm <- cdmFromCon(
   writeSchema = writeSchema, 
   cdmName = dbName, 
   achillesSchema = achillesSchema,
+<<<<<<< HEAD
   #cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+=======
+<<<<<<< HEAD
+  cohortTables = "allvac_cohort"
+=======
+  cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+>>>>>>> 5966c558c99a19585408c6c50ced1e975cbcf89b
+>>>>>>> 3613a6e677e0a5296e76af66f8b57a30f68ffedb
 )
 info(logger, "CDM OBJECT CREATED")
 toc(log = TRUE)
@@ -48,12 +56,12 @@ source(here("Cohorts", "InstantiateCharacteristics.R"))
 info(logger, "CHARACTERISTICS INSTANTIATED")
 toc(log = TRUE)
 
-tic(msg = "PhenotypeR: ")
-# run diagnostics ----
-info(logger, "RUN PHENOTYPER")
-source(here("PhenotypeR", "PhenotypeR.R"))
-info(logger, "PHENOTYPER FINISHED")
-toc(log = TRUE)
+# tic(msg = "PhenotypeR: ")
+# # run diagnostics ----
+# info(logger, "RUN PHENOTYPER")
+# source(here("PhenotypeR", "PhenotypeR.R"))
+# info(logger, "PHENOTYPER FINISHED")
+# toc(log = TRUE)
 
 tic(msg = "Matching: ")
 # run analyses ----
