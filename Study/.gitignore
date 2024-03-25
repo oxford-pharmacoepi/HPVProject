@@ -40,17 +40,16 @@ vignettes/*.pdf
 
 # Results file
 Results/
-<<<<<<< HEAD
 PhenotypeR/
-=======
 PhenoResults/
->>>>>>> 4a4ca16ec9136d576ab399337a57c82d4c88d5b0
+
 
 # Phenotyper shiny
 phenotypeR_shiny-main/
 
 # Code to run
 CodeToRun.R
+RunStudy.R
 
 # Concept relations (too large)
 PhenotypeR/Phoebe/concept_recommended.csv
