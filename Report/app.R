@@ -22,7 +22,7 @@ library(plotly)
 
 #load("mergedData.Rdata")
 
-source(here("ShinyApps", "HPVProject","functions.R"))
+source(here("Report","functions.R"))
 
 # Load data
 Lasso <- read.csv("/home/AD_NDORMS/asanchezparada/HPVProject/Study/Results/lasso_selectedfeatures_public_100k.csv") |>

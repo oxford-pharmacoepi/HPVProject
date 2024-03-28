@@ -42,7 +42,7 @@ vignettes/*.pdf
 Results/
 PhenotypeR/
 PhenoResults/
-
+RunFiles/
 
 # Phenotyper shiny
 phenotypeR_shiny-main/
