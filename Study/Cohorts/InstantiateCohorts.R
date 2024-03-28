@@ -30,7 +30,8 @@ if (instantiateCohorts) {
     dplyr::select(!c(observation_period_id, period_type_concept_id)) %>% # eliminate unnecessary columns
     addSex() %>%
     addDateOfBirth(cdm$observation_period) %>%
-    filter(date_of_birth >= as.POSIXct("1995-01-01")) %>% #, date_of_birth <= as.POSIXct("2023-12-31") - years(15)) %>%
+    #addAge() %>%
+    filter(year(date_of_birth) >= 1995) %>% #, date_of_birth <= as.POSIXct("2023-12-31") - years(15)) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
     recordCohortAttrition("Restrict to subjects born in 1995 or after") %>%
     filter(sex == "Female") %>% # Filter to select only women
@@ -38,6 +39,7 @@ if (instantiateCohorts) {
     recordCohortAttrition("Restrict to females") %>%  # Record the changes made
     mutate(date_9years = as.Date(date_of_birth + years(9))) %>%
     filter(cohort_start_date <= date_9years) %>% #, cohort_end_date >= date_9years) %>%
+    #filter(age <= 9) %>% #, cohort_end_date >= date_9years) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
     recordCohortAttrition("Restrict to subjects in observation since 9yo") %>%
     mutate(date_15years = as.Date(date_of_birth + years(15))) %>%

@@ -128,7 +128,8 @@ total_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
 cdm <- cdm |>
   CDMConnector::insertTable(
     name = "total_matched_cohort",
-    table = total_matched_cohort
+    table = total_matched_cohort,
+    overwrite = TRUE
   ) 
 
 # Subpopulation
@@ -337,31 +338,19 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     }
     
     # Apply matching
-    # Add Region and previous visits
-<<<<<<< HEAD
-=======
+    # Add Previous visits
+    
     dataMatching <- subpop_data |> 
-      addRegion() |> 
-      select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
+      dplyr::select("vac_status", "subject_id", "year_of_birth", all_of(selectedLassoFeatures)) |> 
       as_tibble()  |>  
       mutate_all(~replace(., is.na(.), 0)) |>
       compute()
-    # Match
-    dataMatched <- matchit(vac_status ~ . - subject_id,
-                           data = dataMatching, 
-                           exact = c("year_of_birth","region"), 
-                           method = "nearest", 
-                           distance = "glm",
-                           caliper = 0.2
-                           )
->>>>>>> 5966c558c99a19585408c6c50ced1e975cbcf89b
     
     # Match
-    
     if(is.null(selectedLassoFeatures)){
       print("is null")
       region_type <- "num"       # Matching no accepta "character" variables
-
+      
       dataMatching <- subpop_data |> 
         addRegion() |> 
         dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
@@ -375,13 +364,13 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
                            exact = TRUE,
                            ties = FALSE,
                            replace = FALSE)
-
+      
       # Add subclass
       treated <- dataMatching[dataMatched$index.treated, ] |>
         mutate(subclass = 1:dataMatched$wnobs)
       control <- dataMatching[dataMatched$index.control, ] |>
         mutate(subclass = 1:dataMatched$wnobs)
-
+      
       # Save matched cohorts
       sub_matched <- union_all(treated, control)
       
@@ -396,7 +385,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       region_type <- "char"
       
       dataMatching <- subpop_data |> 
-        addRegion("char") |> 
+        addRegion() |> 
         dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
         as_tibble()  |>  
         mutate_all(~replace(., is.na(.), 0)) |>
@@ -409,15 +398,16 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
                              method = "nearest", 
                              distance = "glm",
                              ratio = 1
-                             )
-
+      )
+      # Save matched cohort
+      sub_matched <- as_tibble(match.data(dataMatched)) |> 
+        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
+        compute()
+      
     }
-    # Save matched cohort
-    sub_matched <- as_tibble(match.data(dataMatched)) |> 
-      dplyr::select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
-      compute()
-
-        n_matched <- as.numeric(sub_matched |> tally() |> pull())
+    
+    
+    n_matched <- as.numeric(sub_matched |> tally() |> pull())
     info(logger = logger, paste0("Matched = ", n_matched))
     
     cdm <- cdm |>
@@ -456,7 +446,8 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       union_all(cdm[[cohort_name]] |> 
                   mutate(cohort_year = cohort_definition_id, 
                          pair_id = as.numeric(subclass) + last_pair, 
-                         cohort_definition_id = vac_status + 10)
+                         cohort_definition_id = vac_status + 10) |>
+                  dplyr::select(! c(subclass, region))
       ) |> 
       compute()
     
@@ -505,19 +496,19 @@ cdm$total_vac_matched_cohort <- cdm$total_vac_matched_cohort |>
   compute(name = "total_vac_matched_cohort", temporary = FALSE)
 
 # Change cohort start date for the vaccination date /index date
- cdm$vac_cohort <- cdm$vac_cohort |>
-   mutate(cohort_start_date = as.Date(date_15years)) |>
-   dplyr::select(! date_15years) |>
-   compute(name = "vac_cohort", temporary = FALSE)
+cdm$vac_cohort <- cdm$vac_cohort |>
+  mutate(cohort_start_date = as.Date(date_15years)) |>
+  dplyr::select(! date_15years) |>
+  compute(name = "vac_cohort", temporary = FALSE)
 
- cdm$unvac_cohort <- cdm$unvac_cohort |>
-   mutate(cohort_start_date = as.Date(date_15years)) |>
-   dplyr::select(! date_15years) |>
-   compute(name = "unvac_cohort", temporary = FALSE)
+cdm$unvac_cohort <- cdm$unvac_cohort |>
+  mutate(cohort_start_date = as.Date(date_15years)) |>
+  dplyr::select(! date_15years) |>
+  compute(name = "unvac_cohort", temporary = FALSE)
 
 # Write the results
 write.csv(cdm$total_matched_cohort |> summary(),
-         paste0(resultsFolder,"/attrition_total_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
+          paste0(resultsFolder,"/attrition_total_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
 
 write.csv(lasso_selectedfeatures,
           paste0(resultsFolder,"/lasso_selectedfeatures_",cdmSchema,".csv"), row.names = FALSE)
