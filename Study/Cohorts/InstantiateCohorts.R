@@ -46,11 +46,11 @@ if (instantiateCohorts) {
     filter(cohort_end_date >= date_15years) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
     recordCohortAttrition("Restrict to subjects turning 15 in observation")
-
-    #addPriorObservation(indexDate = "date_9years", priorObservationName = "prior_observation_9y") %>%
-    #filter(prior_observation_9y >= 365) %>%
-    #compute(name = "condition_cohort", temporary = FALSE) %>%
-    #recordCohortAttrition("Select subjects with at least 365 days of prior observation") 
+  
+  #addPriorObservation(indexDate = "date_9years", priorObservationName = "prior_observation_9y") %>%
+  #filter(prior_observation_9y >= 365) %>%
+  #compute(name = "condition_cohort", temporary = FALSE) %>%
+  #recordCohortAttrition("Select subjects with at least 365 days of prior observation") 
   
   # Intersect the conditioned cohort to the cohort containing all vaccinated people  
   cdm$vac_status_cohort <- cdm$condition_cohort %>%
