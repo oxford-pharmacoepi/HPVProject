@@ -171,7 +171,7 @@ write.csv(slc_smd, paste0(resultsFolder,"/largeScale_SMD_",cdmSchema,".csv"), ro
 #             by = c("variable_name","variable_level", "table_name","concept"))
 slc_help <- slc_tidy |>
   filter(estimate_name == "count") |>
-  select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
+  dplyr::select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
   left_join(slc_smd |> select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
             by = c("variable_name","variable_level", "table_name","concept"))
 
