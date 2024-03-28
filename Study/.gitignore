@@ -42,11 +42,7 @@ vignettes/*.pdf
 Results/
 PhenotypeR/
 PhenoResults/
-<<<<<<< HEAD
 RunFiles/
-=======
-
->>>>>>> 18a531228fd7555b71ab70141a0d7c6fc964a32c
 
 # Phenotyper shiny
 phenotypeR_shiny-main/
