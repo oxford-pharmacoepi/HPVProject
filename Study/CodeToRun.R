@@ -6,15 +6,14 @@ library(log4r)
 library(dplyr)
 library(here)
 library(tictoc)
-here::set_here("/home/AD_NDORMS/asanchezparada/HPVProject/Study")
 
 # database metadata and connection details
 #Declare connection variables
-server_dbi <- "cdm_gold_202307"
+server_dbi <- "...."
 user       <- Sys.getenv("user")
 password   <- Sys.getenv("password")
-port       <- "5432"
-host       <- "163.1.65.51"
+port       <- "..."
+host       <- "...."
 
 # Database connection details
 # In this study we also use the DBI package to connect to the database
@@ -39,21 +38,21 @@ db <- dbConnect(RPostgres::Postgres(),
                 user = user,
                 password = password)
 
-db_name <- "cdmGold"
-dbName <- server_dbi
+db_name <- "...."
+dbName <- "...."
 
 # The name of the schema that contains the OMOP CDM with patient-level data
-cdmSchema <- "public_100k"
+cdmSchema <- "..."
 
 # A prefix for all permanent tables in the database
-writePrefix <- "as_hpv_"
+writePrefix <- "..."
 
 # The name of the schema where results tables will be created 
-writeSchema <- c(schema = "results", prefix = writePrefix)
+writeSchema <- ...
 
 # The name of the schema that contains the results from running Achilles package
 # it can be removed if Achilles stables are not needed.
-achillesSchema <- "results"
+achillesSchema <- "..."
 
 # minimum counts that can be displayed according to data governance
 minCellCount <- 5
