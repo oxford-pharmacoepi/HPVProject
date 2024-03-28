@@ -12,7 +12,7 @@ tic.clear()
 tic(msg = "HPVStudy Total run time: ")
 
 # parameters ----
-instantiateCohorts <- FALSE
+instantiateCohorts <- TRUE
 instantiateCharacteristics <- FALSE
 
 tic(msg = "Creation of CDM object: ")
@@ -24,11 +24,8 @@ cdm <- cdmFromCon(
   writeSchema = writeSchema, 
   cdmName = dbName, 
   achillesSchema = achillesSchema,
-<<<<<<< HEAD
   cohortTables = "allvac_cohort"
-=======
-  cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
->>>>>>> 5966c558c99a19585408c6c50ced1e975cbcf89b
+
 )
 info(logger, "CDM OBJECT CREATED")
 toc(log = TRUE)
@@ -39,12 +36,12 @@ toc(log = TRUE)
 #   "cdm_snapshot_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
 # )))
 
-# tic(msg = "Instantiation of Cohorts: ")
-# # instantiate necessary cohorts ----
-# #info(logger, "INSTANTIATING STUDY COHORTS")
-# source(here("Cohorts", "InstantiateCohorts.R"))
-# info(logger, "STUDY COHORTS INSTANTIATED")
-# toc(log = TRUE)
+tic(msg = "Instantiation of Cohorts: ")
+# instantiate necessary cohorts ----
+#info(logger, "INSTANTIATING STUDY COHORTS")
+source(here("Cohorts", "InstantiateCohorts.R"))
+info(logger, "STUDY COHORTS INSTANTIATED")
+toc(log = TRUE)
 
 # tic(msg = "Instantiation of Characteristics: ")
 # info(logger, "INSTANTIATING STUDY CHARACTERISTICS")
@@ -78,6 +75,14 @@ toc(log = TRUE)
 #info(logger, "OUTCOME MODEL FINISHED")
 #toc(log = TRUE)
 
+toc(log = TRUE)
+tic.log(format = TRUE)
+tic_log <- tic.log(format = TRUE)
+
+output$log <- tibble(cdm_name = input$cdmName, log = paste0(tic_log %>%  unlist(), collapse = "\n"))
+write_csv(output$log, here("Results", paste0(
+  "log_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
+)))
 
 # export results ----
 # info(logger, "EXPORTING RESULTS")
