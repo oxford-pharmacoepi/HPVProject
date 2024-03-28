@@ -30,8 +30,8 @@ input <- list(
 
 # Log start ------
 
-tic.clearlog()
-tic.clear()
+# tic.clearlog()
+# tic.clear()
 tic(msg = "phenotypeR total time run: ")
 
 # Options and set-up: directories and settings ------
@@ -511,14 +511,14 @@ rm(cdmSampled)
 
 # Log close ############
 
-toc(log = TRUE)
-tic.log(format = TRUE)
-tic_log <- tic.log(format = TRUE)
-
-output$log <- tibble(cdm_name = input$cdmName, log = paste0(tic_log %>%  unlist(), collapse = "\n"))
-write_csv(output$log, here("PhenoResults", paste0(
-  "log_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
-)))
+# toc(log = TRUE)
+# tic.log(format = TRUE)
+# tic_log <- tic.log(format = TRUE)
+# 
+# output$log <- tibble(cdm_name = input$cdmName, log = paste0(tic_log %>%  unlist(), collapse = "\n"))
+# write_csv(output$log, here("PhenoResults", paste0(
+#   "log_", cdmName(cdm), "_" ,format(Sys.time(), "_%Y_%m_%d"), ".csv"
+# )))
 
 
 
