@@ -146,8 +146,16 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
   info(logger = logger, paste0("CREATE SUBPOPULATION ", sy))
   
   subpopulation <-  union(population |> 
-                            filter(vac_status == 0 & date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))), 
-                          population |> filter(vac_status == 1) |> 
+                            filter(vac_status == 0,
+                                   cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                   cohort_end_date >= as.POSIXct(paste0(as.integer(sy),"-12-31")),
+                                   date_9years <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                   date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))), 
+                          population |> filter(vac_status == 1, 
+                                   cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                   cohort_end_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                   date_9years <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                   date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))) |> 
                             inner_join(cdm$allvac_cohort |> 
                                          filter(cohort_start_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")), 
                                                 cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-12-31"))) |> 
@@ -179,12 +187,6 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
   subpopulation |> tally()
   
   # Checks:
-  # in observation at index date
-  subpopulation <- subpopulation |> 
-    filter(cohort_start_date <= index_date & cohort_end_date >= index_date) |>
-    compute()
-  subpopulation |> tally()
-  
   # 365 prior information from index_date
   subpopulation <- subpopulation |> 
     addPriorObservation(indexDate = "index_date", priorObservationName = "prior_observation_indexdate") |> 
@@ -227,7 +229,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
         ConditionsAndDrugs, by = "subject_id"
       )
     size <- sub_ConditionsAndDrugs |> distinct(concept_id) |> tally() |> pull()
-    info(logger, "Conditions only for 2008 population: ", size)
+    info(logger, "Conditions only for subpopulation: ", size)
     
     sub_ConditionsAndDrugs <- sub_ConditionsAndDrugs |>
       filter(occurrence_start_date < index_date) %>%
@@ -526,6 +528,3 @@ write.csv(matched_unvac_attrition, paste0(resultsFolder,"/matched_unvac_attritio
 
 write.csv(vac_attrition, paste0(resultsFolder,"/vac_attrition_",cdmSchema,".csv"), row.names = FALSE)
 write.csv(unvac_attrition, paste0(resultsFolder,"/unvac_attrition_",cdmSchema,".csv"), row.names = FALSE)
-
-
-#info(logger = logger, paste0("THE END"))
