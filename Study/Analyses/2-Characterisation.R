@@ -103,11 +103,11 @@ write.csv(tableOne_smd, paste0(resultsFolder,"/tableOne_SMD_",cdmSchema,".csv"),
 #   dplyr::select(age_group, variable_name, window, table, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
 #   left_join(tableOne_smd |> dplyr::select(age_group, variable_name, window, table, original_smd, matched_smd"Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
 #             by = c("variable_name","age_group","window","table"))
-to_help <- tableOne_tidy |>
-  filter(estimate_name == "count") |>
-  select(age_group, variable_name, window, table, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
-  left_join(tableOne_smd |> select(age_group, variable_name, window, table, original_smd, matched_smd, "counts (UN, VAC, UM, VM)"), 
-            by = c("variable_name","age_group","window","table"))
+# to_help <- tableOne_tidy |>
+#   filter(estimate_name == "count") |>
+#   dplyr::select(age_group, variable_name, window, table, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
+#   left_join(tableOne_smd |> select(age_group, variable_name, window, table, original_smd, matched_smd, "counts (UN, VAC, UM, VM)"), 
+#             by = c("variable_name","age_group","window","table"))
 
 # Vaccinated cohort
 info(logger, "LARGE CHARACTERISATION SUMMARY")
@@ -169,9 +169,9 @@ write.csv(slc_smd, paste0(resultsFolder,"/largeScale_SMD_",cdmSchema,".csv"), ro
 #   dplyr::select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
 #   left_join(slc_smd |> dplyr::select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
 #             by = c("variable_name","variable_level", "table_name","concept"))
-slc_help <- slc_tidy |>
-  filter(estimate_name == "count") |>
-  dplyr::select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
-  left_join(slc_smd |> select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
-            by = c("variable_name","variable_level", "table_name","concept"))
+# slc_help <- slc_tidy |>
+#   filter(estimate_name == "count") |>
+#   dplyr::select(variable_name, variable_level, table_name, concept, vac_cohort, unvac_cohort, total_unvac_matched_cohort, total_vac_matched_cohort) |>
+#   left_join(slc_smd |> select(variable_name, variable_level, table_name, concept, original_smd, matched_smd, "Count VAC", "Count UNVAC", "Count Matched VAC", "Count Matched UNVAC"), 
+#             by = c("variable_name","variable_level", "table_name","concept"))
 
