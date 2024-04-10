@@ -17,9 +17,14 @@ library(RPostgres)
 if (instantiateCohorts) {
   info(logger, "INSTANTANIATE COHORTS")
   # Load vaccination records
-  cohorts <- readCohortSet(path = here("Cohorts", "HIV_firstVac"))
-  cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("allvac_cohort"))
+  #cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
+  #cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
   
+  cdm$firstdose_cohort <- cdm$doses_allvac_cohort |>
+    group_by(subject_id) |>
+    filter(cohort_start_date == min(cohort_start_date)) |>
+    ungroup() |>
+    compute(name = "firstdose_cohort", temporary = FALSE)
   
   cdm$condition_cohort <- cdm$observation_period %>%
     # All individuals
@@ -38,8 +43,8 @@ if (instantiateCohorts) {
     compute(name = "condition_cohort", temporary = FALSE) %>%
     recordCohortAttrition("Restrict to females") %>%  # Record the changes made
     mutate(date_9years = as.Date(date_of_birth + years(9))) %>%
-    #filter(cohort_start_date <= date_9years) %>% #, cohort_end_date >= date_9years) %>%
-    filter(age <= 9) %>% #, cohort_end_date >= date_9years) %>%
+    filter(cohort_start_date <= date_9years, cohort_end_date >= date_9years) %>%
+    #filter(age <= 9) %>% #, cohort_end_date >= date_9years) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
     recordCohortAttrition("Restrict to subjects in observation since 9yo") %>%
     # addPriorObservation(indexDate = "date_9years") %>%
@@ -54,7 +59,7 @@ if (instantiateCohorts) {
 
   # Intersect the conditioned cohort to the cohort containing all vaccinated people  
   cdm$vac_status_cohort <- cdm$condition_cohort %>%
-    addCohortIntersectFlag(targetCohortTable = "allvac_cohort", window = c(-Inf, 0), indexDate = "date_15years", nameStyle = "vac_status") %>% #Intersection conditioned to vaccination before 15th birthday
+    addCohortIntersectFlag(targetCohortTable = "firstdose_cohort", window = c(-Inf, 0), indexDate = "date_15years", nameStyle = "vac_status") %>% #Intersection conditioned to vaccination before 15th birthday
     mutate(cohort_definition_id = vac_status + 1) %>% # Separate unvac and vac people into 2 cohorts (cdi = 1, 2)
     compute(name = "vac_status_cohort", temporary = FALSE)
   
@@ -90,7 +95,7 @@ if (instantiateCohorts) {
     writeSchema = writeSchema, 
     cdmName = dbName, 
     achillesSchema = achillesSchema, 
-    cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort")
+    cohortTables = c("vac_cohort", "unvac_cohort", "firstdose_cohort", "doses_allvac_cohort")
   )
   
 }

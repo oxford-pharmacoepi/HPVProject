@@ -6,13 +6,10 @@ cdm <- cdmFromCon(
   writeSchema = writeSchema, 
   cdmName = dbName, 
   achillesSchema = achillesSchema, 
-  cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "total_vac_matched_cohort", "total_unvac_matched_cohort", "doses_allvac_cohort", "phenotyping_hpv_")
+  cohortTables = c("vac_cohort", "unvac_cohort", "firstdose_cohort", "doses_allvac_cohort", "total_vac_matched_cohort", "total_unvac_matched_cohort", "phenotyping_hpv_")
 )
 
 info(logger, "PREPARE OUTCOME TABLE")
-# Instantiate all doses of vaccine
-#cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
-#cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
 
 # Put together matched cohorts
 cdm$total_matched_cohort <- union_all(cdm$total_vac_matched_cohort, cdm$total_unvac_matched_cohort) |>

@@ -11,20 +11,39 @@ library(here)
 library(dplyr)
 source(here("Analyses","FuncionsMAH.R"))
 
+#cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
+#cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
 
 # Details
-# log_file        <- here(resultsFolder, "log_MatchingData.txt")
+# log_file        <- here(resultsFolder, "log_DoseMatchingData.txt")
 # logger          <- create.logger(logfile = log_file, level = "INFO")
 info(logger = logger, "CREATE INITIAL POPULATION")
 
 # Total Population
-population <- union(cdm$vac_cohort, cdm$unvac_cohort)
+population <- cdm$vac_cohort
+doses <- cdm$doses_allvac_cohort |>
+  left_join(population |>
+              dplyr::select(subject_id, date_15years), by = "subject_id") |>
+  filter(cohort_start_date <= date_15years) |>
+  group_by(subject_id) |>
+  count()
+
+population <- population |>
+  left_join(doses, by = "subject_id") |>
+  mutate(num_doses = n) |>
+  dplyr::select(! n) |>
+  filter(num_doses == 1 || num_doses >= 2) |>
+  mutate(treatment = case_when(
+    num_doses == 1 ~ 0,
+    num_doses > 1 ~ 1)
+  )
+
 size_pop <- population |> tally() |> pull()
-size_vacpop <- population |> filter(vac_status == 1) |> tally() |> pull()
-size_unvacpop <- population |> filter(vac_status == 0) |> tally() |> pull()
+size_1vacpop <- population |> filter(treatment == 0) |> tally() |> pull()
+size_2vacpop <- population |> filter(treatment == 1) |> tally() |> pull()
 info(logger = logger, paste0("Size Population = ", size_pop))
-info(logger = logger, paste0("Size Vacc Population = ", size_vacpop))
-info(logger = logger, paste0("Size Unvacc Population = ", size_unvacpop))
+info(logger = logger, paste0("Size 1 dose Population = ", size_1vacpop))
+info(logger = logger, paste0("Size 2 doses Population = ", size_2vacpop))
 
 # Total conditions and drugs
 Conditions <- cdm$condition_occurrence |> 
@@ -108,10 +127,10 @@ lasso_selectedfeatures <- tibble("concept_id" = as.numeric(),
                                  "database" = as.character()
 )
 
-total_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
+dose_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
                                "subject_id" = as.numeric(),
                                "cohort_year" = as.numeric(),
-                               "vac_status" = as.numeric(),
+                               "vac_status" = as.numeric(1),
                                "cohort_start_date" =  as.Date(character()),
                                "cohort_end_date" =  as.Date(character()), 
                                "pair_id" = as.numeric()
@@ -120,8 +139,8 @@ total_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
 
 cdm <- cdm |>
   CDMConnector::insertTable(
-    name = "total_matched_cohort",
-    table = total_matched_cohort,
+    name = "dose_matched_cohort",
+    table = dose_matched_cohort,
     overwrite = TRUE
   ) 
 
@@ -130,64 +149,46 @@ cdm <- cdm |>
 last_pair <- 0
 
 for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
-  #sy <- 2021
+  #sy <- 2009
   # Execution time
   start_time <- Sys.time()
-  
   print(sy)
-  
   info(logger = logger, paste0("CREATE SUBPOPULATION ", sy))
   
-  subpopulation <-  union(population |> 
-                            filter(vac_status == 0,
-                                   cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                   cohort_end_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                   date_9years <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                   date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))), 
-                          population |> filter(vac_status == 1, 
-                                               cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                               cohort_end_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                               date_9years <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
-                                               date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))) |> 
+  subpopulation <-  population |> filter(cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                         cohort_end_date >= as.POSIXct(paste0(as.integer(sy),"-12-31")),
+                                         date_9years <= as.POSIXct(paste0(as.integer(sy),"-01-01")),
+                                         date_15years >= as.POSIXct(paste0(as.integer(sy),"-01-01"))) |> 
                             inner_join(cdm$firstdose_cohort |> 
                                          filter(cohort_start_date >= as.POSIXct(paste0(as.integer(sy),"-01-01")), 
                                                 cohort_start_date <= as.POSIXct(paste0(as.integer(sy),"-12-31"))) |> 
-                                         dplyr::select(subject_id)
-                            )
-  ) |> 
+                                         rename(index_date = cohort_start_date) |>
+                                         dplyr::select(subject_id, index_date)
+                            ) |> 
     compute()
   
-  prev <- subpopulation |> 
-    filter(vac_status == 0) |> 
-    inner_join(cdm$firstdose_cohort |>
-                 filter(cohort_start_date < as.POSIXct(paste0(as.integer(sy),"-01-01"))), by = "subject_id") |>
-    collect()
-  # THE PROBLEM IS THE NOT VACCINATED PEOPLE. I have people which are vaccinated after 15 years but before the index_date selected.
-  # This could be ERRROR but this people will never be matched. SHould they be removed before lasso?
-  
-  if (nrow(prev) == 0) {
-    check <- "OK!"
-  }else{
-    check <- "ERROR"
-  }
-  info(logger, "Check vac subpopulation is not already vaccinated: ", check)
-  subpopulation |> tally()
   
   # Set new index date: 01/01/2008
-  subpopulation <- subpopulation |> 
-    mutate(index_date = as.POSIXct(paste0(as.integer(sy),"-01-01"))) |>
-    compute()
+  # subpopulation <- subpopulation |> 
+  #   mutate(index_date = as.POSIXct(paste0(as.integer(sy),"-01-01"))) |>
+  #   compute()
   subpopulation |> tally()
   
   # Checks:
-  # 365 prior information from index_date
+  # in observation at index date
   subpopulation <- subpopulation |> 
-    addPriorObservation(indexDate = "index_date", priorObservationName = "prior_observation_indexdate") |> 
-    filter(prior_observation_indexdate > 365) |>
+    filter(cohort_start_date <= index_date & cohort_end_date >= index_date) |>
     compute()
   subpopulation |> tally()
   
-  # Add year of birth
+  # 365 prior information from index_date
+  subpopulation <- subpopulation |> 
+    addPriorObservation(indexDate = "index_date", priorObservationName = "prior_observation_indexdate") |> 
+    filter(prior_observation_indexdate >= 365) |>
+    compute()
+  subpopulation |> tally()
+  
+  # Add year of birth and prior visits
   subpopulation <- subpopulation |> 
     inner_join(cdm$person |> 
                  dplyr::select(person_id, year_of_birth) |> 
@@ -197,32 +198,30 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     compute()
   
   size_subpopulation <- as.numeric(count(distinct(subpopulation, subject_id)) |> compute() |> pull())
-  size_vacsubpopulation <- as.numeric(count(distinct(subpopulation |> filter(vac_status == 1), subject_id)) |> compute() |> pull())
-  size_unvacsubpopulation <- as.numeric(count(distinct(subpopulation |> filter(vac_status == 0), subject_id)) |> compute() |> pull())
+  size_1vacsubpopulation <- as.numeric(count(distinct(subpopulation |> filter(treatment == 0), subject_id)) |> compute() |> pull())
+  size_2vacsubpopulation <- as.numeric(count(distinct(subpopulation |> filter(treatment == 1), subject_id)) |> compute() |> pull())
   info(logger = logger, paste0("Size subpopulation = ", size_subpopulation))
-  info(logger = logger, paste0("Size vaccinated subpopulation = ", size_vacsubpopulation))
-  info(logger = logger, paste0("Size unvaccinated subpopulation = ", size_unvacsubpopulation))
+  info(logger = logger, paste0("Size 1 dose subpopulation = ", size_1vacsubpopulation))
+  info(logger = logger, paste0("Size 2 doses subpopulation = ", size_2vacsubpopulation))
   
-  if (size_vacsubpopulation < 5 | size_unvacsubpopulation < 5) {
+  if (size_1vacsubpopulation < 5 | size_2vacsubpopulation < 5) {
     info(logger = logger, "Not enough participants to proceed with the lasso / matching")
     population <- population |> 
       anti_join(subpopulation |> 
-                  filter(vac_status == 1), 
+                  filter(treatment == 0), 
                 by = "subject_id"
       )
-    remaining_vac <- population |> filter(vac_status == 1) |> tally() |> pull()
-    info(logger = logger, paste0("Remaining vaccinated subjects in population = ", remaining_vac))
   }else{
     
     # Subpopulation as Lasso Input
     sub_ConditionsAndDrugs <- subpopulation |> 
-      dplyr::select(subject_id, index_date, year_of_birth, vac_status) |> 
+      dplyr::select(subject_id, index_date, year_of_birth, treatment) |> 
       inner_join(
         # Occurrence Record before index date
         ConditionsAndDrugs, by = "subject_id"
       )
     size <- sub_ConditionsAndDrugs |> distinct(concept_id) |> tally() |> pull()
-    info(logger, "Conditions only for 2008 population: ", size)
+    info(logger, "Conditions only for subpopulation: ", size)
     
     sub_ConditionsAndDrugs <- sub_ConditionsAndDrugs |>
       filter(occurrence_start_date < index_date) %>%
@@ -243,17 +242,6 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     size <- sub_ConditionsAndDrugs |> distinct(concept) |> tally() |> pull()
     info(logger, "Conditions after windows: ", size)
     
-    prev <- sub_ConditionsAndDrugs |> filter(concept == "mid_40213321") |> collect()
-    if (nrow(prev) == 0) {
-      check <- "OK!"
-    }else{
-      check <- "ERROR"
-    }
-    info(logger, "Check vac subpopulation is not already vaccinated: ", check)
-    
-    # THIS IS THE IMPORTANT CHECK. Because even if there is a vaccinated person at > 15 years, that condition will not pass because we previously set that condiitons are saved before 15 years
-    # This person is in the subpopulation cohort but not in the sub_ConditionsAndDrugs
-    
     lowfreq_oc <- sub_ConditionsAndDrugs |> 
       # Only those present with a frequency of > 0.5%
       group_by(concept) |> 
@@ -271,7 +259,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Add Drugs and Conditions, and covariates
     subpop_data <- subpopulation |> 
-      dplyr::select(subject_id, index_date, year_of_birth, vac_status) |> 
+      dplyr::select(subject_id, index_date, year_of_birth, treatment) |> 
       addVisitsPriorYear() |>
       addPreviousVaccinations() |>
       left_join(papanicolau_smear_test, by = "subject_id") |>
@@ -286,7 +274,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # All conditions and drugs present in the subjects previous to the index_date
     x <- in_data |> 
-      dplyr::select(! c(subject_id, index_date, vac_status, year_of_birth)) |> 
+      dplyr::select(! c(subject_id, index_date, treatment, year_of_birth)) |> 
       as_tibble() |>
       mutate_all(~replace(., is.na(.), 0)) |> 
       data.matrix() 
@@ -294,7 +282,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     
     # Vac_status = 0/1
     y <- in_data |> 
-      dplyr::select(vac_status) |> 
+      dplyr::select(treatment) |> 
       compute() |> 
       as_tibble() |> 
       data.matrix()
@@ -303,6 +291,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     lambdas <- 10^seq(2, -3, by = -.1) # magnitude order lambda
     best_model <- cv.glmnet(x, y, alpha = 1, lambda = lambdas, standarize = TRUE, nforlds = 5, family = "binomial")
     # how do we know this is the best lambda???????????????????????
+    # Binomial??
     
     coef.lasso_reg <- coef(best_model, s = best_model$lambda.1se)
     selectedLassoFeatures <- names(coef.lasso_reg[(coef.lasso_reg[,1]!=0),1])
@@ -336,39 +325,39 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     # Add Previous visits
     
     dataMatching <- subpop_data |> 
-      dplyr::select("vac_status", "subject_id", "year_of_birth", all_of(selectedLassoFeatures)) |> 
+      dplyr::select("treatment", "subject_id", "year_of_birth", all_of(selectedLassoFeatures)) |> 
       as_tibble()  |>  
       mutate_all(~replace(., is.na(.), 0)) |>
       compute()
     
-    # Match
+    Match
     if(is.null(selectedLassoFeatures)){
       print("is null")
       region_type <- "num"       # Matching no accepta "character" variables
-      
-      dataMatching <- subpop_data |> 
-        addRegion() |> 
-        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
-        as_tibble()  |>  
+
+      dataMatching <- subpop_data |>
+        addRegion() |>
+        dplyr::select("treatment", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |>
+        as_tibble()  |>
         mutate_all(~replace(., is.na(.), 0)) |>
         compute()
-      
-      dataMatched <- Match(Tr = dataMatching$vac_status,
+
+      dataMatched <- Match(Tr = dataMatching$treatment,
                            X = subset(dataMatching, select = c(year_of_birth, region)),
                            M = 1,
                            exact = TRUE,
                            ties = FALSE,
                            replace = FALSE)
-      
+
       # Add subclass
       treated <- dataMatching[dataMatched$index.treated, ] |>
         mutate(subclass = 1:dataMatched$wnobs)
       control <- dataMatching[dataMatched$index.control, ] |>
         mutate(subclass = 1:dataMatched$wnobs)
-      
+
       # Save matched cohorts
       sub_matched <- union_all(treated, control)
-      
+
       # dataMatched <- matchit(vac_status ~ . - subject_id,
       #                        data = dataMatching,
       #                        method = "exact",
@@ -381,12 +370,12 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       
       dataMatching <- subpop_data |> 
         addRegion() |> 
-        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
+        dplyr::select("treatment", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
         as_tibble()  |>  
         mutate_all(~replace(., is.na(.), 0)) |>
         compute()
       
-      dataMatched <- matchit(vac_status ~ . - subject_id,
+      dataMatched <- matchit(treatment ~ . - subject_id,
                              data = dataMatching, 
                              exact = c("year_of_birth","region"), 
                              caliper = 0.2, 
@@ -396,7 +385,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       )
       # Save matched cohort
       sub_matched <- as_tibble(match.data(dataMatched)) |> 
-        dplyr::select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
+        dplyr::select("treatment", "subject_id", "year_of_birth", "region", "subclass") |>
         compute()
       
     }
@@ -414,7 +403,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     cohort_name <- paste0("sub_",as.integer(sy),"_matched_cohort")
     cdm[[cohort_name]] <- cdm[[cohort_name]] |> 
       left_join(subpopulation |> 
-                  dplyr::select(cohort_definition_id, subject_id, cohort_start_date, cohort_end_date), 
+                  dplyr::select(cohort_definition_id, subject_id, cohort_start_date, cohort_end_date, index_date), 
                 by = "subject_id"
       ) |>
       mutate(cohort_definition_id = as.integer(sy))
@@ -426,27 +415,21 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     )
     
     # Eliminate matched individuals from the population cohort
-    population <- anti_join(population,cdm[[cohort_name]] |> 
-                              dplyr::select(subject_id)
-    ) |> 
-      anti_join(subpopulation |> 
-                  filter(vac_status == 1), 
-                by = "subject_id"
-      )
-    remaining_vac <- population |> filter(vac_status == 1) |> tally() |> pull()
-    info(logger = logger, paste0("Remaining vaccinated subjects in population = ", remaining_vac))
+    population <- anti_join(population, subpopulation) 
+    remaining_pop <- population |> tally() |> pull()
+    info(logger = logger, paste0("Remaining subjects in population = ", remaining_pop))
     
     # Collect different years matched cohort into one table
-    cdm$total_matched_cohort <- cdm$total_matched_cohort |> 
+    cdm$dose_matched_cohort <- cdm$dose_matched_cohort |> 
       union_all(cdm[[cohort_name]] |> 
                   mutate(cohort_year = cohort_definition_id, 
                          pair_id = as.numeric(subclass) + last_pair, 
-                         cohort_definition_id = vac_status + 10) |>
+                         cohort_definition_id = treatment + 10) |>
                   dplyr::select(! c(subclass, region))
       ) |> 
       compute()
     
-    last_pair <- cdm$total_matched_cohort |> 
+    last_pair <- cdm$dose_matched_cohort |> 
       dplyr::select(pair_id) |> 
       as.array() |> 
       collect() |> 
@@ -459,37 +442,51 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
 }
 
 info(logger, "RESULTS")
-n_total_matched <- cdm$total_matched_cohort |> tally() |> pull()
-info(logger, paste0("Number of total matched individuals = ", n_total_matched))
-info(logger, paste0("Number of vac matched individuals = ", n_total_matched/2))
-info(logger, paste0("Number of unvac matched individuals = ", n_total_matched/2))
+n_doses_matched <- cdm$dose_matched_cohort |> tally() |> pull()
+info(logger, paste0("Number of doses matched individuals = ", n_doses_matched))
+info(logger, paste0("Number of 1 dose matched individuals = ", n_doses_matched/2))
+info(logger, paste0("Number of 2 dose matched individuals = ", n_doses_matched/2))
 
 
-# Separate vac/unvac matched cohorts
-cdm$total_vac_matched_cohort <- cdm$total_matched_cohort |> 
-  filter(cohort_definition_id == 11) |> 
-  compute(name = "total_vac_matched_cohort", temporary = FALSE) |>
-  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("total_vac_matched_cohort")),
+# Separate 1 dose/2 dose matched cohorts
+cdm$doses1_matched_cohort <- cdm$dose_matched_cohort |> 
+  filter(cohort_definition_id == 10) |> 
+  compute(name = "doses1_matched_cohort", temporary = FALSE) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("doses1_matched_cohort")),
+                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 10)) |>
+  recordCohortAttrition("Exclude not matched individuals") |>
+  compute(name = "doses1_matched_cohort", temporary = FALSE)
+
+cdm$doses2_matched_cohort <- cdm$dose_matched_cohort |> 
+  filter(cohort_definition_id == 11) |>
+  compute(name = "doses2_matched_cohort", temporary = FALSE) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("doses2_matched_cohort")),
                  cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 11)) |>
   recordCohortAttrition("Exclude not matched individuals")
 
-cdm$total_vac_matched_cohort <- cdm$total_vac_matched_cohort |>
-  inner_join(cdm$firstdose_cohort |> dplyr::select(subject_id, cohort_start_date) |> rename(index_date = cohort_start_date), by = "subject_id") |>
-  compute(name = "total_vac_matched_cohort", temporary = FALSE)
-
-cdm$total_unvac_matched_cohort <- cdm$total_matched_cohort |> 
-  filter(cohort_definition_id == 10) |> 
-  inner_join(cdm$total_vac_matched_cohort |> dplyr::select(pair_id, index_date), by = "pair_id") |>
-  # mutate(cohort_start_date = as.Date(index_date)) |>
-  compute(name = "total_unvac_matched_cohort", temporary = FALSE) |>
-  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("total_unvac_matched_cohort")),
-                 cohortAttritionRef = attrition(cdm$unvac_cohort) %>% mutate(cohort_definition_id = 10)) |>
-  recordCohortAttrition("Exclude not matched individuals")
+# Change cohort start date for the 15 years
+# cdm$vac_cohort <- cdm$vac_cohort |>
+#   mutate(cohort_start_date = as.Date(date_15years)) |>
+#   dplyr::select(! date_15years) |>
+#   compute(name = "vac_cohort", temporary = FALSE)
+# 
+# cdm$unvac_cohort <- cdm$unvac_cohort |>
+#   mutate(cohort_start_date = as.Date(date_15years)) |>
+#   dplyr::select(! date_15years) |>
+#   compute(name = "unvac_cohort", temporary = FALSE)
 
 # Write the results
-write.csv(cdm$total_matched_cohort |> summary(),
-          paste0(resultsFolder,"/attrition_total_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(cdm$dose_matched_cohort |> summary(),
+          paste0(resultsFolder,"/attrition_dose_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
 
 write.csv(lasso_selectedfeatures,
-          paste0(resultsFolder,"/lasso_selectedfeatures_",cdmSchema,".csv"), row.names = FALSE)
+          paste0(resultsFolder,"/lasso_selectedfeatures_dose_",cdmSchema,".csv"), row.names = FALSE)
 
+# Save attritions
+info(logger, "SAVE COHORT ATTRITIONS")
+
+matched_doses1_attrition <- attrition(cdm$doses1_matched_cohort)
+matched_doses2_attrition <- attrition(cdm$doses2_matched_cohort)
+
+write.csv(matched_doses1_attrition, paste0(resultsFolder,"/matched_doses1_attrition_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(matched_doses2_attrition, paste0(resultsFolder,"/matched_doses2_attrition_",cdmSchema,".csv"), row.names = FALSE)

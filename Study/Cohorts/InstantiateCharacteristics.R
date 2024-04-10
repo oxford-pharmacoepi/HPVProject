@@ -77,6 +77,6 @@ cdm <- generateCohortSet(
     writeSchema = writeSchema, 
     cdmName = dbName, 
     achillesSchema = achillesSchema, 
-    cohortTables = c("vac_cohort", "unvac_cohort", "allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
+    cohortTables = c("vac_cohort", "unvac_cohort", "firstdose_cohort", "doses_allvac_cohort", "vaccinations", "hiv_status", "conditions", "medications", "papanicolau_smear_testing", "cytology")
   )
 }
