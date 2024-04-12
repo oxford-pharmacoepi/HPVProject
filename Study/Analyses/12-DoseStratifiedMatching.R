@@ -127,7 +127,7 @@ lasso_selectedfeatures <- tibble("concept_id" = as.numeric(),
                                  "database" = as.character()
 )
 
-dose_1vs2_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
+dose_2vs3_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
                               "subject_id" = as.numeric(),
                               "cohort_year" = as.numeric(),
                               "vac_status" = as.numeric(1),
@@ -139,8 +139,8 @@ dose_1vs2_matched_cohort <- tibble("cohort_definition_id" = as.numeric(),
 
 cdm <- cdm |>
   CDMConnector::insertTable(
-    name = "dose_1vs2_matched_cohort",
-    table = dose_1vs2_matched_cohort,
+    name = "dose_2vs3_matched_cohort",
+    table = dose_2vs3_matched_cohort,
     overwrite = TRUE
   ) 
 
@@ -420,7 +420,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
     info(logger = logger, paste0("Remaining subjects in population = ", remaining_pop))
     
     # Collect different years matched cohort into one table
-    cdm$dose_1vs2_matched_cohort <- cdm$dose_1vs2_matched_cohort |> 
+    cdm$dose_2vs3_matched_cohort <- cdm$dose_2vs3_matched_cohort |> 
       union_all(cdm[[cohort_name]] |> 
                   mutate(cohort_year = cohort_definition_id, 
                          pair_id = as.numeric(subclass) + last_pair, 
@@ -429,7 +429,7 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       ) |> 
       compute()
     
-    last_pair <- cdm$dose_1vs2_matched_cohort |> 
+    last_pair <- cdm$dose_2vs3_matched_cohort |> 
       dplyr::select(pair_id) |> 
       as.array() |> 
       collect() |> 
@@ -442,14 +442,14 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
 }
 
 info(logger, "RESULTS")
-n_doses_matched <- cdm$dose_1vs2_matched_cohort |> tally() |> pull()
+n_doses_matched <- cdm$dose_2vs3_matched_cohort |> tally() |> pull()
 info(logger, paste0("Number of doses matched individuals = ", n_doses_matched))
 info(logger, paste0("Number of 2 dose matched individuals = ", n_doses_matched/2))
 info(logger, paste0("Number of 3 dose matched individuals = ", n_doses_matched/2))
 
 
 # Separate 1 dose/2 dose matched cohorts
-cdm$dose2_matched_cohort <- cdm$dose_1vs2_matched_cohort |> 
+cdm$dose2_matched_cohort <- cdm$dose_2vs3_matched_cohort |> 
   filter(cohort_definition_id == 10) |> 
   compute(name = "dose2_matched_cohort", temporary = FALSE) |>
   newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("dose2_matched_cohort")),
@@ -457,7 +457,7 @@ cdm$dose2_matched_cohort <- cdm$dose_1vs2_matched_cohort |>
   recordCohortAttrition("Exclude not matched individuals") |>
   compute(name = "dose2_matched_cohort", temporary = FALSE)
 
-cdm$doses3_matched_cohort <- cdm$dose_1vs2_matched_cohort |> 
+cdm$doses3_matched_cohort <- cdm$dose_2vs3_matched_cohort |> 
   filter(cohort_definition_id == 11) |>
   compute(name = "doses3_matched_cohort", temporary = FALSE) |>
   newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("doses3_matched_cohort")),
@@ -476,8 +476,8 @@ cdm$doses3_matched_cohort <- cdm$dose_1vs2_matched_cohort |>
 #   compute(name = "unvac_cohort", temporary = FALSE)
 
 # Write the results
-write.csv(cdm$dose_1vs2_matched_cohort |> summary(),
-          paste0(resultsFolder,"/attrition_dose2_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(cdm$dose_2vs3_matched_cohort |> summary(),
+          paste0(resultsFolder,"/attrition_dose2vs3_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
 
 write.csv(lasso_selectedfeatures,
           paste0(resultsFolder,"/lasso_selectedfeatures_dose2_",cdmSchema,".csv"), row.names = FALSE)
