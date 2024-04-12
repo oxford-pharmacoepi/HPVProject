@@ -330,7 +330,6 @@ for(sy in 2008:2023){#(year(studyEndDate)-year(studyStartDate))){
       mutate_all(~replace(., is.na(.), 0)) |>
       compute()
     
-    Match
     if(is.null(selectedLassoFeatures)){
       print("is null")
       region_type <- "num"       # Matching no accepta "character" variables
