@@ -11,12 +11,12 @@ library(here)
 library(dplyr)
 source(here("Analyses","FuncionsMAH.R"))
 
-cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
-cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
+# cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
+# cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
 
 # Details
-log_file        <- here(resultsFolder, "log_DoseMatchingData.txt")
-logger          <- create.logger(logfile = log_file, level = "INFO")
+# log_file        <- here(resultsFolder, "log_DoseMatchingData.txt")
+# logger          <- create.logger(logfile = log_file, level = "INFO")
 info(logger = logger, "CREATE INITIAL POPULATION")
 
 # Total Population
