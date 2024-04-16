@@ -38,6 +38,20 @@ population <- population |>
     num_doses > 2 ~ 1)
   )
 
+cdm$dose2_matched_cohort <- population |> 
+  filter(treatment == 0) |> 
+  compute(name = "dose2_matched_cohort", temporary = FALSE) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = 10, cohort_name = c("dose2_matched_cohort")),
+                 cohortAttritionRef = attrition(cdm$vac_cohort) |> mutate(cohort_definition_id = 10)) |>
+  recordCohortAttrition("Restrict to 2 doses")
+
+cdm$doses3_matched_cohort <- population |> 
+  filter(treatment == 1) |>
+  compute(name = "doses3_matched_cohort", temporary = FALSE) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("doses3_matched_cohort")),
+                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 11)) |>
+  recordCohortAttrition("Restrict to 3 doses")
+
 size_pop <- population |> tally() |> pull()
 size_2vacpop <- population |> filter(treatment == 0) |> tally() |> pull()
 size_3vacpop <- population |> filter(treatment == 1) |> tally() |> pull()
@@ -46,21 +60,21 @@ info(logger = logger, paste0("Size 2 dose Population = ", size_2vacpop))
 info(logger = logger, paste0("Size 3 doses Population = ", size_3vacpop))
 
 # Total conditions and drugs
-Conditions <- cdm$condition_occurrence |> 
+Conditions <- cdm$condition_occurrence |>
   rename(subject_id = person_id, concept_id = condition_concept_id, occurrence_start_date = condition_start_date) |>
   left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
-  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
-  mutate(occurrence_type = "condition") |> 
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |>
+  mutate(occurrence_type = "condition") |>
   compute()
 
-Drugs <-  cdm$drug_exposure |> 
-  rename(subject_id = person_id, concept_id = drug_concept_id, occurrence_start_date = drug_exposure_start_date)|> 
+Drugs <-  cdm$drug_exposure |>
+  rename(subject_id = person_id, concept_id = drug_concept_id, occurrence_start_date = drug_exposure_start_date)|>
   left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
-  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
-  mutate(occurrence_type = "drug") |> 
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |>
+  mutate(occurrence_type = "drug") |>
   compute()
 
-ConditionsAndDrugs <- union_all(Conditions, Drugs) |> 
+ConditionsAndDrugs <- union_all(Conditions, Drugs) |>
   mutate(occurrence_flag = 1) |>
   inner_join(population, by = "subject_id") |>
   filter(occurrence_start_date < date_15years) |>
@@ -447,21 +461,20 @@ info(logger, paste0("Number of 2 dose matched individuals = ", n_doses_matched/2
 info(logger, paste0("Number of 3 dose matched individuals = ", n_doses_matched/2))
 
 
-# Separate 1 dose/2 dose matched cohorts
+# Separate 2 dose/3 dose matched cohorts
 cdm$dose2_matched_cohort <- cdm$dose_2vs3_matched_cohort |> 
   filter(cohort_definition_id == 10) |> 
   compute(name = "dose2_matched_cohort", temporary = FALSE) |>
   newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("dose2_matched_cohort")),
-                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 10)) |>
-  recordCohortAttrition("Exclude not matched individuals") |>
-  compute(name = "dose2_matched_cohort", temporary = FALSE)
+                 cohortAttritionRef = attrition(cdm$dose2_matched_cohort) %>% mutate(cohort_definition_id = 10)) |>
+  recordCohortAttrition("Restrict to matched individuals")
 
 cdm$doses3_matched_cohort <- cdm$dose_2vs3_matched_cohort |> 
   filter(cohort_definition_id == 11) |>
   compute(name = "doses3_matched_cohort", temporary = FALSE) |>
   newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("doses3_matched_cohort")),
-                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 11)) |>
-  recordCohortAttrition("Exclude not matched individuals")
+                 cohortAttritionRef = attrition(cdm$doses3_matched_cohort) %>% mutate(cohort_definition_id = 11)) |>
+  recordCohortAttrition("Restrict to matched individuals")
 
 # Change cohort start date for the 15 years
 # cdm$vac_cohort <- cdm$vac_cohort |>
@@ -487,5 +500,5 @@ info(logger, "SAVE COHORT ATTRITIONS")
 matched_dose2_attrition <- attrition(cdm$dose2_matched_cohort)
 matched_doses3_attrition <- attrition(cdm$doses3_matched_cohort)
 
-write.csv(matched_doses23_attrition, paste0(resultsFolder,"/matched_dose2_attrition_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(matched_dose2_attrition, paste0(resultsFolder,"/matched_dose2_attrition_",cdmSchema,".csv"), row.names = FALSE)
 write.csv(matched_doses3_attrition, paste0(resultsFolder,"/matched_doses3_attrition_",cdmSchema,".csv"), row.names = FALSE)
