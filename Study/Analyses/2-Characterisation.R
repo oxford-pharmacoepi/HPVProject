@@ -17,13 +17,13 @@ cdm <- omopgenerics::bind(
   cdm$unvac_cohort |> mutate(cohort_start_date = date_15years) |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
   cdm$doses1_matched_cohort |> mutate(cohort_start_date = index_date) |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
   cdm$doses2_matched_cohort |> mutate(cohort_start_date = index_date) |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
-  #cdm$total_unvac_matched_cohort |> mutate(cohort_start_date = index_date) |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
-  #cdm$total_vac_matched_cohort |> mutate(cohort_start_date = index_date)  |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
-  name = "hpv_cohorts"
+  cdm$total_unvac_matched_cohort |> mutate(cohort_start_date = index_date) |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
+  cdm$total_vac_matched_cohort |> mutate(cohort_start_date = index_date)  |> dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date"),
+  name = "hpv_population_cohorts"
 )
 
 
-table_one_summary <- cdm$hpv_cohorts |> 
+table_one_summary <- cdm$hpv_population_cohorts |> 
   dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date") |>
   addAge(cdm,ageGroup = list(c(0,15),c(16,19),c(20,Inf))) |>
   mutate(cohort_start_date = as.Date(cohort_start_date)) |>
@@ -94,12 +94,12 @@ tableOne_counts <- tableOne_tidy |>
 
 tableOne_smd <- tableOne_red |>
   mutate(original_smd = abs((vac_cohort - unvac_cohort)/sqrt((vac_cohort*(1-vac_cohort) + unvac_cohort*(1-unvac_cohort))/2))) |>
-  #mutate(overall_matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
+  mutate(overall_matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
   mutate(dose_matched_smd = abs((doses2_matched_cohort - doses1_matched_cohort)/sqrt((doses2_matched_cohort*(1-doses2_matched_cohort) + doses1_matched_cohort*(1-doses1_matched_cohort))/2))) |>
-  mutate(across(c(original_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
-  # mutate(across(c(original_smd, overall_matched_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
-  #dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, overall_matched_smd, dose_matched_smd)) |>
-  dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, dose_matched_smd)) |>
+  #mutate(across(c(original_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
+  mutate(across(c(original_smd, overall_matched_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
+  dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, overall_matched_smd, dose_matched_smd)) |>
+  #dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, dose_matched_smd)) |>
   left_join(tableOne_counts, by = c("variable_name","age_group","window","table")) |>
   dplyr::select(! c(estimate_name, estimate_type))
 
@@ -127,14 +127,14 @@ info(logger, "LARGE CHARACTERISATION SUMMARY")
 #   rename(doses_strata = treatment) |>
 #   dplyr::select(subject_id, doses_strata)
 # 
-# cdm <- CDMConnector::insertTable(table = total_population, name = "hpv_cohorts")
-# cdm$hpv_cohorts <- union_all(cdm$unvac_cohort, cdm$vac_cohort) |> 
-#   compute(name = "hpv_cohorts") |>
+# cdm <- CDMConnector::insertTable(table = total_population, name = "hpv_population_cohorts")
+# cdm$hpv_population_cohorts <- union_all(cdm$unvac_cohort, cdm$vac_cohort) |> 
+#   compute(name = "hpv_population_cohorts") |>
 #   dplyr::select("cohort_definition_id", "subject_id", "cohort_start_date", "cohort_end_date","vac_status") |>
 #   left_join(matched_population, by = "subject_id") |>
 #   left_join(doses_population, by = "subject_id")
 
-slc <- summariseLargeScaleCharacteristics(cdm$hpv_cohorts, 
+slc <- summariseLargeScaleCharacteristics(cdm$hpv_population_cohorts, 
                                           window = list(c(-Inf, -366), c(-365, -31), c(-31, -1)), 
                                           eventInWindow = c("condition_occurrence","drug_exposure"),
                                           minimumFrequency = 0
@@ -179,12 +179,12 @@ slc_counts <- slc_tidy |>
 
 slc_smd <- slc_red |>
   mutate(original_smd = abs((vac_cohort - unvac_cohort)/sqrt((vac_cohort*(1-vac_cohort) + unvac_cohort*(1-unvac_cohort))/2))) |>
-  #mutate(overall_matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
+  mutate(overall_matched_smd = abs((total_vac_matched_cohort - total_unvac_matched_cohort)/sqrt((total_vac_matched_cohort*(1-total_vac_matched_cohort) + total_unvac_matched_cohort*(1-total_unvac_matched_cohort))/2))) |>
   mutate(dose_matched_smd = abs((doses2_matched_cohort - doses1_matched_cohort)/sqrt((doses2_matched_cohort*(1-doses2_matched_cohort) + doses1_matched_cohort*(1-doses1_matched_cohort))/2))) |>
-  mutate(across(c(original_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
-  # mutate(across(c(original_smd, overall_matched_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
-  #dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, overall_matched_smd, dose_matched_smd)) |>
-  dplyr::select(c(result_id, variable_name, variable_level, estimate_name, estimate_type, table_name, concept, original_smd, dose_matched_smd)) |>
+  #mutate(across(c(original_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
+  mutate(across(c(original_smd, overall_matched_smd, dose_matched_smd), ~replace(., is.na(.), 0))) |>
+  dplyr::select(c(result_id, age_group, variable_name, variable_level, estimate_name, estimate_type, table, window, original_smd, overall_matched_smd, dose_matched_smd)) |>
+  #dplyr::select(c(result_id, variable_name, variable_level, estimate_name, estimate_type, table_name, concept, original_smd, dose_matched_smd)) |>
   left_join(slc_counts, by = c("variable_name","variable_level", "table_name","concept")) |>
   dplyr::select(! c(estimate_name, estimate_type))
 
@@ -199,8 +199,8 @@ write.csv(slc_smd, paste0(resultsFolder,"/largeScale_SMD_",cdmSchema,".csv"), ro
 # Save attritions
 info(logger, "SAVE COHORT ATTRITIONS")
 
-attritions <- attrition(cdm$hpv_cohorts) |>
-  left_join(settings(cdm$hpv_cohorts), by = "cohort_definition_id") |>
+attritions <- attrition(cdm$hpv_population_cohorts) |>
+  left_join(settings(cdm$hpv_population_cohorts), by = "cohort_definition_id") |>
   dplyr::select(! cohort_definition_id) |>
   setcolorder(c("cohort_name", "number_records", "number_subjects", "reason_id", "reason", "excluded_records", "excluded_subjects"))
 
