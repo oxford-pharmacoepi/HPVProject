@@ -487,9 +487,6 @@ cdm$total_unvac_matched_cohort <- cdm$total_matched_cohort |>
   recordCohortAttrition("Exclude not matched individuals")
 
 # Write the results
-write.csv(cdm$total_matched_cohort |> summary(),
-          paste0(resultsFolder,"/attrition_total_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
-
 write.csv(lasso_selectedfeatures,
           paste0(resultsFolder,"/lasso_selectedfeatures_",cdmSchema,".csv"), row.names = FALSE)
 

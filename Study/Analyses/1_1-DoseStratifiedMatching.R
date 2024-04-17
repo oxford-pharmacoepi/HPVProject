@@ -488,9 +488,6 @@ cdm$doses23_matched_cohort <- cdm$dose_1vs2_matched_cohort |>
 #   compute(name = "unvac_cohort", temporary = FALSE)
 
 # Write the results
-write.csv(cdm$dose_1vs2_matched_cohort |> summary(),
-          paste0(resultsFolder,"/attrition_dose1vs2_matched_cohort_",cdmSchema,".csv"), row.names = FALSE)
-
 write.csv(lasso_selectedfeatures,
           paste0(resultsFolder,"/lasso_selectedfeatures_dose_",cdmSchema,".csv"), row.names = FALSE)
 
