@@ -41,15 +41,15 @@ population <- population |>
 cdm$dose1_matched_cohort <- population |> 
   filter(treatment == 0) |> 
   compute(name = "dose1_matched_cohort", temporary = FALSE) |>
-  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(10), cohort_name = c("dose1_matched_cohort")),
-                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 10)) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(2), cohort_name = c("dose1_matched_cohort")),
+                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 2)) |>
   recordCohortAttrition("Restrict to 1 dose")
 
 cdm$doses23_matched_cohort <- population |> 
   filter(treatment == 1) |>
   compute(name = "doses23_matched_cohort", temporary = FALSE) |>
-  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(11), cohort_name = c("doses23_matched_cohort")),
-                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 11)) |>
+  newCohortTable(cohortSetRef = tibble(cohort_definition_id = c(2), cohort_name = c("doses23_matched_cohort")),
+                 cohortAttritionRef = attrition(cdm$vac_cohort) %>% mutate(cohort_definition_id = 2)) |>
   recordCohortAttrition("Restrict to 2 or 3 doses")
 
 size_pop <- population |> tally() |> pull()
@@ -60,26 +60,26 @@ info(logger = logger, paste0("Size 1 dose Population = ", size_1vacpop))
 info(logger = logger, paste0("Size 2 doses Population = ", size_2vacpop))
 
 # Total conditions and drugs
-# Conditions <- cdm$condition_occurrence |> 
-#   rename(subject_id = person_id, concept_id = condition_concept_id, occurrence_start_date = condition_start_date) |>
-#   left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
-#   dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
-#   mutate(occurrence_type = "condition") |> 
-#   compute()
-# 
-# Drugs <-  cdm$drug_exposure |> 
-#   rename(subject_id = person_id, concept_id = drug_concept_id, occurrence_start_date = drug_exposure_start_date)|> 
-#   left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
-#   dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |> 
-#   mutate(occurrence_type = "drug") |> 
-#   compute()
-# 
-# ConditionsAndDrugs <- union_all(Conditions, Drugs) |> 
-#   mutate(occurrence_flag = 1) |>
-#   inner_join(population, by = "subject_id") |>
-#   filter(occurrence_start_date < date_15years) |>
-#   dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date, occurrence_type, occurrence_flag) |>
-#   compute()
+Conditions <- cdm$condition_occurrence |>
+  rename(subject_id = person_id, concept_id = condition_concept_id, occurrence_start_date = condition_start_date) |>
+  left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |>
+  mutate(occurrence_type = "condition") |>
+  compute()
+
+Drugs <-  cdm$drug_exposure |>
+  rename(subject_id = person_id, concept_id = drug_concept_id, occurrence_start_date = drug_exposure_start_date)|>
+  left_join(cdm$concept |> dplyr::select(concept_id, concept_name), by = "concept_id") |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date) |>
+  mutate(occurrence_type = "drug") |>
+  compute()
+
+ConditionsAndDrugs <- union_all(Conditions, Drugs) |>
+  mutate(occurrence_flag = 1) |>
+  inner_join(population, by = "subject_id") |>
+  filter(occurrence_start_date < date_15years) |>
+  dplyr::select(subject_id, concept_id, concept_name, occurrence_start_date, occurrence_type, occurrence_flag) |>
+  compute()
 
 # Prepare covariates
 hiv_status <- population |>
@@ -497,5 +497,5 @@ info(logger, "SAVE COHORT ATTRITIONS")
 matched_dose1_attrition <- attrition(cdm$dose1_matched_cohort)
 matched_doses23_attrition <- attrition(cdm$doses23_matched_cohort)
 
-write.csv(matched_doses1_attrition, paste0(resultsFolder,"/matched_dose1_attrition_",cdmSchema,".csv"), row.names = FALSE)
-write.csv(matched_doses2_attrition, paste0(resultsFolder,"/matched_doses23_attrition_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(matched_dose1_attrition, paste0(resultsFolder,"/matched_dose1_attrition_",cdmSchema,".csv"), row.names = FALSE)
+write.csv(matched_doses23_attrition, paste0(resultsFolder,"/matched_doses23_attrition_",cdmSchema,".csv"), row.names = FALSE)
