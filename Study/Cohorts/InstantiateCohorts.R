@@ -14,18 +14,32 @@ library(tidyverse)
 library(usethis)
 library(RPostgres)
 
-if (instantiateCohorts) {
-  info(logger, "INSTANTANIATE COHORTS")
-  # Load vaccination records
-  #cohorts <- readCohortSet(path = here("Cohorts", "HIV_allvac"))
-  #cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
+# Load vaccination records
+if (instantiateVaccinationCohorts) {
+  cohorts <- readCohortSet(path = here("Cohorts", "HPV_allvac"))
+  cdm <- generateCohortSet(cdm = cdm, cohortSet = cohorts, name = c("doses_allvac_cohort"))
   
   cdm$firstdose_cohort <- cdm$doses_allvac_cohort |>
     group_by(subject_id) |>
     filter(cohort_start_date == min(cohort_start_date)) |>
     ungroup() |>
     compute(name = "firstdose_cohort", temporary = FALSE)
+} else {
+  cdm <- cdmFromCon(
+    con = db,
+    cdmSchema = cdmSchema, 
+    writeSchema = writeSchema, 
+    cdmName = server_dbi, 
+    achillesSchema = achillesSchema,
+    cohortTables = c("firstdose_cohort",
+                     "doses_allvac_cohort")
+  )
+}
+
+if (instantiateCohorts) {
+  info(logger, "INSTANTANIATE COHORTS")
   
+  # GENERAL COHORT RESTRICTING: sex, year of birth and time in observation ------------
   cdm$condition_cohort <- cdm$observation_period %>%
     # All individuals
     mutate(cohort_definition_id = 0) %>% # Add cohort id column
@@ -34,57 +48,47 @@ if (instantiateCohorts) {
     newCohortTable(cohortSetRef = tibble(cohort_definition_id = 0, cohort_name = "condition_cohort")) %>%
     dplyr::select(!c(observation_period_id, period_type_concept_id)) %>% # eliminate unnecessary columns
     addSex() %>%
+    filter(sex == sex_cohort) %>% # Filter to select sex
+    compute(name = "condition_cohort", temporary = FALSE) %>%
+    recordCohortAttrition(paste0("Restrict to ", sex_cohort)) %>%  # Record the changes made
     addDateOfBirth(cdm$observation_period) %>%
     addAge() %>%
-    filter(year(date_of_birth) >= 1995) %>% #, date_of_birth <= as.POSIXct("2023-12-31") - years(15)) %>%
+    filter(year(date_of_birth) >= start_birth) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
-    recordCohortAttrition("Restrict to subjects born in 1995 or after") %>%
-    filter(sex == "Female") %>% # Filter to select only women
+    recordCohortAttrition("Restrict to subjects born in 1990 or after") %>%
+    mutate(!!paste0("date_",yy,"years") := as.Date(date_of_birth + years(yy))) %>%
+    filter(cohort_end_date >= !!sym(paste0("date_",yy,"years"))) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
-    recordCohortAttrition("Restrict to females") %>%  # Record the changes made
+    recordCohortAttrition("Restrict to subjects turning 18 in observation") |>
     mutate(date_9years = as.Date(date_of_birth + years(9))) %>%
-    filter(cohort_start_date <= date_9years, cohort_end_date >= date_9years) %>%
-    #filter(age <= 9) %>% #, cohort_end_date >= date_9years) %>%
+    filter(cohort_start_date <= date_9years) %>%
     compute(name = "condition_cohort", temporary = FALSE) %>%
-    recordCohortAttrition("Restrict to subjects in observation since 9yo") %>%
-    # addPriorObservation(indexDate = "date_9years") %>%
-    # filter(prior_observation >= 365) %>%
-    # compute(name = "condition_cohort", temporary = FALSE) %>%
-    # recordCohortAttrition("Restrict to subjects with prior observation >= 365 at 9yo") %>%
-    mutate(date_15years = as.Date(date_of_birth + years(15))) %>%
-    filter(cohort_end_date >= date_15years) %>%
-    compute(name = "condition_cohort", temporary = FALSE) %>%
-    recordCohortAttrition("Restrict to subjects turning 15 in observation")
+    recordCohortAttrition("Restrict to subjects in observation since 9yo")
   
-
   # Intersect the conditioned cohort to the cohort containing all vaccinated people  
   cdm$vac_status_cohort <- cdm$condition_cohort %>%
-    addCohortIntersectFlag(targetCohortTable = "firstdose_cohort", window = c(-Inf, 0), indexDate = "date_15years", nameStyle = "vac_status") %>% #Intersection conditioned to vaccination before 15th birthday
+    addCohortIntersectFlag(targetCohortTable = "firstdose_cohort", window = c(-Inf, 0), indexDate = paste0("date_",yy,"years"), nameStyle = "vac_status") %>% #Intersection conditioned to vaccination before yyth birthday
     mutate(cohort_definition_id = vac_status + 1) %>% # Separate unvac and vac people into 2 cohorts (cdi = 1, 2)
     compute(name = "vac_status_cohort", temporary = FALSE)
   
   # Define unvaccinated cohort
-  cdm$unvac_cohort <- cdm$vac_status_cohort %>%
+  cdm[[paste0("unvac_",yy,ss,"_coverage_0_any_dose")]] <- cdm$vac_status_cohort %>%
     filter(cohort_definition_id == 1) %>%
-    compute(name = "unvac_cohort", temporary = FALSE) %>%
-    newCohortTable(
-      cohortSetRef = tibble(cohort_definition_id = c(1), cohort_name = c("unvac_cohort")),
-      cohortAttritionRef = attrition(cdm$vac_status_cohort) %>% mutate(cohort_definition_id = 1)
-    ) %>% 
-    recordCohortAttrition("Restrict to unvaccinated at 15 yo")
+    mutate(cohort_start_date = !!sym(paste0("date_",yy,"years"))) %>%
+    compute(name = paste0("unvac_",yy,ss,"_coverage_0_any_dose"), temporary = FALSE) %>%
+    newCohortTable(cohortSetRef = tibble(cohort_definition_id = 1, cohort_name = paste0("unvac_",yy,ss,"_coverage_0_any_dose")),
+                   cohortAttritionRef = attrition(cdm$vac_status_cohort) |> mutate(cohort_definition_id = 1)) |>
+    recordCohortAttrition(paste0("Restrict to unvaccinated at ",yy," yo"))
   
   # Define vaccinated cohort
-  cdm$vac_cohort <- cdm$vac_status_cohort %>%
+  cdm[[paste0("vac_",yy,ss,"_coverage_0_any_dose")]] <- cdm$vac_status_cohort %>%
     filter(cohort_definition_id == 2) %>%
-    compute(name = "vac_cohort", temporary = FALSE) %>%
-    newCohortTable(
-      cohortSetRef = tibble(cohort_definition_id = c(2), cohort_name = c("vac_cohort")),
-      cohortAttritionRef = attrition(cdm$condition_cohort) %>% mutate(cohort_definition_id = 2)
-    ) %>% 
-    recordCohortAttrition("Restrict to vaccinated at 15yo")
-  
-  #listTables(con = db, schema = "results")
-  #cohortSet(cdm$vac_cohort) to see the name of the cohort
+    mutate(cohort_start_date = !!sym(paste0("date_",yy,"years"))) %>%
+    compute(name = paste0("vac_",yy,ss,"_coverage_0_any_dose"), temporary = FALSE) %>%
+    newCohortTable(cohortSetRef = tibble(cohort_definition_id = 2, cohort_name = paste0("vac_",yy,ss,"_coverage_0_any_dose")),
+                   cohortAttritionRef = attrition(cdm$vac_status_cohort) |> mutate(cohort_definition_id = 2)) |>
+    recordCohortAttrition(paste0("Restrict to vaccinated at ",yy," yo"))
+  # --------------------------------
   
   
 } else {
@@ -93,10 +97,16 @@ if (instantiateCohorts) {
     con = db,
     cdmSchema = cdmSchema, 
     writeSchema = writeSchema, 
-    cdmName = dbName, 
-    achillesSchema = achillesSchema, 
-    cohortTables = c("vac_cohort", "unvac_cohort", "firstdose_cohort", "doses_allvac_cohort")
-  )
+    cdmName = server_dbi, 
+    achillesSchema = achillesSchema,
+    cohortTables = c("firstdose_cohort",
+                     "doses_allvac_cohort",
+                     paste0("unvac_",yy,ss,"_coverage_0_any_dose"),
+                     paste0("vac_",yy,ss,"_coverage_0_any_dose")
+                     )
+    )
   
 }
+
+
 
