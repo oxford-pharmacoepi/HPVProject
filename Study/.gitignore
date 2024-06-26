@@ -39,6 +39,9 @@ vignettes/*.pdf
 .Renviron
 
 # Results file
+Results_June/
+Results_May/
+AllResults_wDB/
 Results/
 PhenotypeR/
 PhenoResults/
