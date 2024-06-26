@@ -63,7 +63,7 @@ if (instantiateCharacteristics) {
   
   
   # instantiate cytology
-  info(logger, "Instantiate previous vaccinations")
+  info(logger, "Instantiate cytology")
   cytology_results <- readCohortSet(here("Cohorts","Cytology_results"))
   cdm <- generateCohortSet(
     cdm = cdm,
