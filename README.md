@@ -1,4 +1,4 @@
-# Study Title
+# Effectiveness of HPV vaccination in reducing HPV-related cancers and lesions
 <img src="https://img.shields.io/badge/Study%20Status-Started-blue.svg" alt="Study Status: Started">
 
 - **Study title**: Effectiveness of HPV vaccination in reducing HPV-related cancers and lesions
