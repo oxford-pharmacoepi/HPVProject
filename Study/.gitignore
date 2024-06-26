@@ -49,7 +49,6 @@ phenotypeR_shiny-main/
 
 # Code to run
 CodeToRun.R
-RunStudy.R
 
 # Concept relations (too large)
 PhenotypeR/Phoebe/concept_recommended.csv
