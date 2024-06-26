@@ -158,6 +158,12 @@ info(logger, "RUN OUTCOME MODEL")
 source(here("Analyses", "3-OutcomeModel.R"))
 info(logger, "OUTCOME MODEL FINISHED")
 toc(log = TRUE)
+
+tic(msg = "Outcome model: ")
+info(logger, "RUN NCO")
+source(here("Analyses", "3_2-NCOutcomeModel.R"))
+info(logger, "NCO MODEL FINISHED")
+toc(log = TRUE)
 }
 
 toc(log = TRUE)
