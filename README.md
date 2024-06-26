@@ -1,11 +1,11 @@
 # Study Title
 <img src="https://img.shields.io/badge/Study%20Status-Started-blue.svg" alt="Study Status: Started">
 
-- **Study title**: 
-- **Study start date**: 
-- **Study leads**:
+- **Study title**: Effectiveness of HPV vaccination in reducing HPV-related cancers and lesions
+- **Study start date**: 01/02/2024
+- **Study leads**: Aina Sánchez Parada
 - **Study end date**:
-- **ShinyApp**:
+- **ShinyApp**: https://dpa-pde-oxford.shinyapps.io/TFG_hpv/
 - **Report**:
 - **Publications**:
 
