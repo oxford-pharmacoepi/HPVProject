@@ -36,7 +36,7 @@ if (instantiateVaccinationCohorts) {
   )
 }
 
-if (instantiateCohorts) {
+if (instantiatePopulationCohorts) {
   info(logger, "INSTANTANIATE COHORTS")
   
   # GENERAL COHORT RESTRICTING: sex, year of birth and time in observation ------------
@@ -106,6 +106,56 @@ if (instantiateCohorts) {
                      )
     )
   
+}
+
+if (instantiateOutcomeCohorts) {
+  # Instantiate nondarwin outcomes
+  cohort_json_dir <- "Cohorts/Nondarwin_outcome_cohorts/"
+  cohort_set <- read_cohort_set(cohort_json_dir)
+  
+  cdm <-  generateCohortSet(cdm,
+                            cohort_set,
+                            name = "nondarwin_outcome_cohorts",
+                            computeAttrition = TRUE,
+                            overwrite = TRUE)
+  
+  # Instantiate darwin outcomes
+  darwin_outcome_cohorts <- readCohortSet(here("Cohorts", "Darwin_outcome_cohorts"))
+  cdm <- generateCohortSet(
+    cdm = cdm,
+    name = "darwin_outcome_cohorts",
+    cohortSet = darwin_outcome_cohorts,
+  )
+  
+  # Instantiate NCO
+  nco <- read.csv("Cohorts/NCO.csv", header = TRUE)
+  nco_cs <- newCodelist(
+    as.list(setNames(nco$ConceptId, nco$OutcomeName))
+  )
+  
+  cdm <- generateConceptCohortSet(
+    cdm = cdm,
+    conceptSet = nco_cs,
+    name = "nondarwin_nco_cohorts",
+    limit = "all"
+  )
+  
+} else {
+  cdm <- cdmFromCon(
+    con = db,
+    cdmSchema = cdmSchema, 
+    writeSchema = writeSchema, 
+    cdmName = server_dbi, 
+    achillesSchema = achillesSchema,
+    cohortTables = c("firstdose_cohort",
+                     "doses_allvac_cohort",
+                     paste0("unvac_",yy,ss,"_coverage_0_any_dose"),
+                     paste0("vac_",yy,ss,"_coverage_0_any_dose"),
+                     "darwin_outcome_cohorts",
+                     "nondarwin_outcome_cohorts",
+                     "nondarwin_nco_cohorts"
+    )
+  )
 }
 
 
