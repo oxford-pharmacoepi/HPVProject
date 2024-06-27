@@ -318,10 +318,10 @@ for (cov in coverages) {
       dataMatching <- subpop_data |> 
           addRegion() |> 
           dplyr::select("vac_status", "subject_id", "year_of_birth", "region", all_of(selectedLassoFeatures)) |> 
-          mutate(vac_status = case_when(
-            vac_status == 0 ~ 1,
-            vac_status == 1 ~ 0
-          )) |>
+        mutate(vac_status = case_when(
+          vac_status == 0 ~ comparator_matching,
+          vac_status == 1 ~ target_matching
+        )) |>
           as_tibble()  |>  
           mutate_all(~replace(., is.na(.), 0)) |>
           compute()
@@ -360,8 +360,8 @@ for (cov in coverages) {
     sub_matched <- as_tibble(match.data(dataMatched)) |> 
       dplyr::select("vac_status", "subject_id", "year_of_birth", "region", "subclass") |>
       mutate(vac_status = case_when(
-        vac_status == 0 ~ 1,
-        vac_status == 1 ~ 0
+        vac_status == 0 ~ comparator_matching,
+        vac_status == 1 ~ target_matching
       )) |>
       compute()
       n_matched <- as.numeric(sub_matched |> tally() |> pull())
