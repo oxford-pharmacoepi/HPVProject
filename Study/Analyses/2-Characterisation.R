@@ -1,10 +1,22 @@
-library(reshape2)
+#library(reshape2)
 library(ggplot2)
 library(stringr)
 
 source(here("Analyses", "Figures_functions.R"))
 
 for (cov in coverages) {
+  # ATTRITIONS
+  defined_cohorts <- c(paste0("vac_",yy,ss,"_coverage_",cov,"_any_dose"), paste0("unvac_",yy,ss,"_coverage_",cov,"_any_dose"), 
+                       paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_1dose"), paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_23dose"),
+                       paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_2dose"), paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_3dose")
+                       )
+  for (cohort in defined_cohorts) {
+    att <- attrition(cdm[[cohort]])
+    write.csv(att, here(resultsFolder_att, paste0("att_",cohort,".csv")), row.names = FALSE)
+  }
+  
+  
+  # CHARACTERISATION: Table One and LSC
   # Overall
   cdm <- omopgenerics::bind(
     cdm[[paste0("vac_",yy,ss,"_coverage_",cov,"_any_dose")]],
@@ -19,8 +31,8 @@ for (cov in coverages) {
 
 # Doses stratified
   cdm <- omopgenerics::bind(
-    cdm[[paste0("not_matched_vaccinated_",yy,ss,"_cov",cov,"_1dose")]],
-    cdm[[paste0("not_matched_vaccinated_",yy,ss,"_cov",cov,"_23dose")]],
+    cdm[[paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_1dose")]],
+    cdm[[paste0("not_matched_vaccinated_",yy,ss,"_coverage_",cov,"_23dose")]],
     name = paste0("hpv_crude_1vs23dose_",tolower(sex_cohort),"_cohorts")
   )
   cdm <- omopgenerics::bind(
