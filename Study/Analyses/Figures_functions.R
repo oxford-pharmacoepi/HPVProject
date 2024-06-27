@@ -22,23 +22,23 @@ to_Charac <- function(table, sex, index_date = FALSE) {
       mutate(cohort_end_date = as.Date(cohort_end_date)) |>
       summariseCharacteristics(
         cohortIntersect = list(
-          # "Medications" = list(
-          #   targetCohortTable = "medications", value = "flag", window = list(c(-365,-1),c(-30,-1))
-          # ),
+          "Medications" = list(
+            targetCohortTable = "medications", value = "flag", window = list(c(-365,-1),c(-30,-1))
+          ),
           "Conditions" = list(
-            targetCohortTable = "conditions", value = "flag", window = list(c(-Inf,-1))
+            targetCohortTable = "conditions", value = "flag", window = list(c(-Inf,-1), c(-365,-1),c(-30,-1))
           ),
           "HIV_status" = list(
-            targetCohortTable = "hiv_status", value = "flag", window = c(-Inf,-1)
+            targetCohortTable = "hiv_status", value = "flag", window = list(c(-Inf,-1), c(-365,-1),c(-30,-1))
           ),
           "vaccinations" = list(
-            targetCohortTable = "vaccinations", value = "count", window = c(-Inf,-1)
+            targetCohortTable = "vaccinations", value = "count", window = list(c(-Inf,-1), c(-365,-1),c(-30,-1))
           ),
           "cervical_screening" = list(
-            targetCohortTable = "cervical_screening", value = "count", window = c(-Inf,-1)
+            targetCohortTable = "cervical_screening", value = "count", window = list(c(-Inf,-1), c(-365,-1),c(-30,-1))
           ),
           "smear_test" = list(
-            targetCohortTable = "smear_test", value = "flag", window = c(-Inf,-1)
+            targetCohortTable = "smear_test", value = "flag", window = list(c(-Inf,-1), c(-365,-1),c(-30,-1))
           )
         ),
       )
@@ -49,9 +49,9 @@ to_Charac <- function(table, sex, index_date = FALSE) {
       mutate(cohort_end_date = as.Date(cohort_end_date)) |>
       summariseCharacteristics(
         cohortIntersect = list(
-          # "Medications" = list(
-          #   targetCohortTable = "medications", value = "flag", window = list(c(-365,-1),c(-30,-1))
-          # ),
+          "Medications" = list(
+            targetCohortTable = "medications", value = "flag", window = list(c(-365,-1),c(-30,-1))
+          ),
           "Conditions" = list(
             targetCohortTable = "conditions", value = "flag", window = list(c(-Inf,-1))
           ),
